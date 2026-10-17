@@ -40,7 +40,7 @@ golden fixtures. It lives in the Voyager repository, and for now this package de
 it through a local path:
 
 ```json
-"@voyager-crew/bridge-protocol": "file:../gemini-voyager/.claude/worktrees/local-bridge/packages/bridge-protocol"
+"@voyager-crew/bridge-protocol": "file:../gemini-voyager/packages/bridge-protocol"
 ```
 
 This is a development-only path. Before publishing, it becomes a pinned npm version.

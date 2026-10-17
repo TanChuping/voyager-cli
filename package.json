@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.9.0",
-    "@voyager-crew/bridge-protocol": "file:../gemini-voyager/.claude/worktrees/local-bridge/packages/bridge-protocol",
+    "@voyager-crew/bridge-protocol": "file:../gemini-voyager/packages/bridge-protocol",
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "typescript": "^5.9.3",

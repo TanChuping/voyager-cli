@@ -6,7 +6,7 @@
       "name": "@voyager-crew/cli",
       "devDependencies": {
         "@types/node": "^24.9.0",
-        "@voyager-crew/bridge-protocol": "file:../gemini-voyager/.claude/worktrees/local-bridge/packages/bridge-protocol",
+        "@voyager-crew/bridge-protocol": "file:../gemini-voyager/packages/bridge-protocol",
         "oxfmt": "^0.65.0",
         "oxlint": "^1.80.0",
         "typescript": "^5.9.3",
@@ -143,7 +143,7 @@
 
     "@vitest/spy": ["@vitest/spy@5.0.5", "", {}, "sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw=="],
 
-    "@voyager-crew/bridge-protocol": ["@voyager-crew/bridge-protocol@file:../gemini-voyager/.claude/worktrees/local-bridge/packages/bridge-protocol", {}],
+    "@voyager-crew/bridge-protocol": ["@voyager-crew/bridge-protocol@file:../gemini-voyager/packages/bridge-protocol", {}],
 
     "assertion-error": ["assertion-error@2.0.1", "", {}, "sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA=="],
 
