@@ -1,10 +1,35 @@
-import type { OpCapability, OpName } from '@voyager-crew/bridge-protocol';
+import type {
+  OpCapability,
+  OpName,
+  PolicyReport,
+  PolicyState,
+} from '@voyager-crew/bridge-protocol';
+
+import { type BridgeFailure, failure } from '../util/errors';
+
+/**
+ * The failure a denied or stale extension policy means for any op. Checked
+ * before the op list: the extension then declares no ops, and "unsupported"
+ * would hide that the person has to act (412, not 400).
+ */
+export function policyFailure(state: PolicyState | undefined): BridgeFailure | undefined {
+  if (state === 'denied') {
+    return failure('policy-denied', 'the extension policy does not allow the bridge');
+  }
+  if (state === 'stale') {
+    return failure(
+      'policy-stale',
+      'the extension policy is out of date; turn on online plugin updates in Voyager',
+    );
+  }
+  return undefined;
+}
 
 /** What the server last heard from the paired extension, in memory only. */
 export class ExtensionState {
   lastPollAt: number | null = null;
   ops: readonly OpCapability[] | null = null;
-  policy: { readonly revision: number; readonly allowed: boolean } | null = null;
+  policy: PolicyReport | null = null;
 
   opNames(): ReadonlySet<OpName> | null {
     return this.ops === null ? null : new Set(this.ops.map((op) => op.name));

@@ -13,7 +13,7 @@ import {
 
 import type { CommandDef, JobContext } from '../plugins/api';
 import type { PluginRegistry } from '../plugins/registry';
-import type { ExtensionState } from '../server/extensionState';
+import { type ExtensionState, policyFailure } from '../server/extensionState';
 import { failure, toBridgeError } from '../util/errors';
 import type { Logger } from '../util/log';
 import { isTerminal, type JobRecord, type JobStore } from './jobStore';
@@ -52,6 +52,8 @@ export class JobRunner {
     if (!this.deps.isPaired()) {
       throw failure('not-paired', 'no extension is paired; run `voyager pair`');
     }
+    const refused = policyFailure(this.deps.extension.policy?.state);
+    if (refused !== undefined) throw refused;
     const available = this.deps.extension.opNames();
     const required = this.deps.registry.plugin(plugin)?.requiresOps ?? [];
     const missing = available === null ? [] : required.filter((op) => !available.has(op));
@@ -139,6 +141,7 @@ export class JobRunner {
       signal: controller.signal,
       slot,
       available: () => extension.opNames(),
+      policy: () => extension.policy?.state,
       onStart: (op) => {
         if (op === 'turns.waitReply' && job.status === 'running')
           this.setStatus(job, 'waiting-reply');

@@ -14,6 +14,7 @@ import {
   type ErrorCode,
   type OpCapability,
   type OpName,
+  type PolicyReport,
   type PollResponse,
   type ValidatedBridgeTask,
 } from '@voyager-crew/bridge-protocol';
@@ -79,7 +80,7 @@ export class FakeExtension {
   token: string | undefined;
   origin = EXT_ORIGIN;
   ops: OpCapability[] = OP_NAMES.map((name) => ({ name, v: 1 }));
-  policy = { revision: 1, allowed: true };
+  policy: PolicyReport = { revision: 1, state: 'allowed' };
   readonly tasks: ValidatedBridgeTask[] = [];
   readonly aborts: { taskId: string; reason: string }[] = [];
   /** Server answers that failed the protocol validators; must stay empty. */

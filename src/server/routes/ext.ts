@@ -60,7 +60,7 @@ async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   const view = {
     inflight: new Set(request.inflight.map((entry) => entry.taskId)),
     ops: core.extension.opNames(),
-    policyAllowed: request.policy.allowed,
+    policy: request.policy.state,
   };
   const immediate = core.slot.poll(view);
   if (immediate !== undefined) return { status: 200, data: immediate };

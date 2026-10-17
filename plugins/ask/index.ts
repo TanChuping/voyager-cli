@@ -92,7 +92,10 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
   // Q4 default: close the tab after a success, keep it after a failure.
   if (!input.keepTab) {
     try {
-      await ctx.ops.call('conversation.close', { tabId: opened.tabId });
+      const closed = await ctx.ops.call('conversation.close', { tabId: opened.tabId });
+      if (closed.restoredMode === false) {
+        ctx.log.warn('the bridge tab closed without switching ChatGPT back to its earlier mode');
+      }
     } catch (error) {
       ctx.log.warn('could not close the bridge tab', { error: String(error) });
     }

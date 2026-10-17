@@ -28,9 +28,7 @@ export async function statusCommand(paths: StatePaths, argv: readonly string[]):
         : `last poll ${Math.round((Date.now() - ext.lastPollAt) / 1000)}s ago`;
     printLine(`extension: paired (${ext.browser ?? '?'}, Voyager ${ext.version ?? '?'}), ${seen}`);
     if (ext.policy !== null) {
-      printLine(
-        `policy: revision ${ext.policy.revision}, ${ext.policy.allowed ? 'allowed' : 'denied'}`,
-      );
+      printLine(`policy: revision ${ext.policy.revision}, ${ext.policy.state}`);
     }
   }
   printLine(

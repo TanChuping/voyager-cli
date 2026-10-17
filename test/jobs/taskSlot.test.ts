@@ -8,7 +8,7 @@ const ALL_OPS: ReadonlySet<OpName> = new Set(OP_NAMES);
 const view = (inflight: string[] = [], overrides: Partial<PollView> = {}): PollView => ({
   inflight: new Set(inflight),
   ops: ALL_OPS,
-  policyAllowed: true,
+  policy: 'allowed',
   ...overrides,
 });
 const sendParams = { text: 'hi' };
@@ -223,7 +223,15 @@ describe('what the extension offers', () => {
     const slot = new TaskSlot();
     const result = queue(slot);
     await tick();
-    expect(slot.poll(view([], { policyAllowed: false }))).toBeUndefined();
+    expect(slot.poll(view([], { policy: 'denied' }))).toBeUndefined();
     expect(await rejection(result)).toBe('policy-denied');
+  });
+
+  it('says the policy is stale, not that the op is unsupported, when the extension offers no ops', async () => {
+    const slot = new TaskSlot();
+    const result = queue(slot);
+    await tick();
+    expect(slot.poll(view([], { policy: 'stale', ops: new Set() }))).toBeUndefined();
+    expect(await rejection(result)).toBe('policy-stale');
   });
 });

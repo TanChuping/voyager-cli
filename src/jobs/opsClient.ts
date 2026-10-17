@@ -4,9 +4,11 @@ import {
   type OpName,
   type OpParamsMap,
   type OpResultMap,
+  type PolicyState,
 } from '@voyager-crew/bridge-protocol';
 
 import type { OpCallOptions, OpsClient } from '../plugins/api';
+import { policyFailure } from '../server/extensionState';
 import { failure } from '../util/errors';
 import type { TaskSlot } from './taskSlot';
 
@@ -38,6 +40,8 @@ export interface OpsClientHooks {
   readonly signal: AbortSignal;
   readonly slot: TaskSlot;
   readonly available: () => ReadonlySet<OpName> | null;
+  /** The policy the extension last reported; undefined until it has polled. */
+  readonly policy: () => PolicyState | undefined;
   readonly onStart: (op: OpName) => void;
   readonly onEnd: (op: OpName) => void;
   readonly onProgress: (op: OpName, event: Readonly<Record<string, unknown>>) => void;
@@ -52,6 +56,8 @@ export function createOpsClient(hooks: OpsClientHooks): OpsClient {
       options: OpCallOptions = {},
     ): Promise<OpResultMap[K]> {
       if (hooks.signal.aborted) throw failure('cancelled', 'job was cancelled');
+      const refused = policyFailure(hooks.policy());
+      if (refused !== undefined) throw refused;
       const available = hooks.available();
       if (available !== null && !available.has(op)) {
         throw failure('unsupported-op', `the extension does not offer ${op}`, {

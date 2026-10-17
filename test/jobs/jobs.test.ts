@@ -81,6 +81,27 @@ describe('single job slot', () => {
     expect(errorCode(response)).toBe('not-paired');
     expect(response.status).toBe(412);
   });
+
+  it('tells the caller a stale policy needs the person, not that the ops are unsupported', async () => {
+    const { t, fake } = await setup();
+    fake.policy = { revision: 7, state: 'stale' };
+    fake.ops = [];
+    await fake.poll();
+
+    const ask = await submitAsk(t);
+    expect(ask.status).toBe(412);
+    expect(errorCode(ask)).toBe('policy-stale');
+    const call = await t.cli('POST', BRIDGE_PATHS.call, {
+      op: 'turns.read',
+      params: { conversationId: 'c-1', assistantTurnKey: 't-2' },
+    });
+    expect(call.status).toBe(412);
+    expect(errorCode(call)).toBe('policy-stale');
+
+    fake.policy = { revision: 8, state: 'denied' };
+    await fake.poll();
+    expect(errorCode(await submitAsk(t))).toBe('policy-denied');
+  });
 });
 
 describe('job state machine', () => {

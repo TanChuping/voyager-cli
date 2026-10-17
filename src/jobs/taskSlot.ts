@@ -22,10 +22,12 @@ import {
   type ErrorCode,
   type Issue,
   type OpName,
+  type PolicyState,
   type PollResponse,
   type ValidatedBridgeTask,
 } from '@voyager-crew/bridge-protocol';
 
+import { policyFailure } from '../server/extensionState';
 import { BridgeFailure, failure } from '../util/errors';
 import { newId } from '../util/ids';
 
@@ -62,7 +64,7 @@ export interface PollView {
   readonly inflight: ReadonlySet<string>;
   /** Ops the extension declared; null until it has polled once. */
   readonly ops: ReadonlySet<OpName> | null;
-  readonly policyAllowed: boolean;
+  readonly policy: PolicyState;
 }
 
 export interface RunTaskInput {
@@ -203,11 +205,9 @@ export class TaskSlot {
       return undefined;
     }
     if (entry.state === 'queued') {
-      if (!view.policyAllowed) {
-        this.settle(
-          entry,
-          failure('policy-denied', 'the extension policy does not allow the bridge'),
-        );
+      const refused = policyFailure(view.policy);
+      if (refused !== undefined) {
+        this.settle(entry, refused);
         this.release(entry);
         return undefined;
       }
