@@ -1,0 +1,82 @@
+import {
+  validateOpParams,
+  WAIT_REPLY_DEFAULT_TIMEOUT_MS,
+  type OpName,
+  type OpParamsMap,
+  type OpResultMap,
+} from '@voyager-crew/bridge-protocol';
+
+import type { OpCallOptions, OpsClient } from '../plugins/api';
+import { failure } from '../util/errors';
+import type { TaskSlot } from './taskSlot';
+
+/** Server-side wait for an op's result when the caller gives none. */
+const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<OpName, number>> = {
+  'conversation.open': 60_000,
+  'conversation.close': 15_000,
+  'conversation.ready': 30_000,
+  'model.inspect': 15_000,
+  'model.select': 30_000,
+  'composer.attach': 120_000,
+  'composer.send': 30_000,
+  'turns.waitReply': WAIT_REPLY_DEFAULT_TIMEOUT_MS,
+  'turns.read': 30_000,
+  'files.download': 120_000,
+};
+const WAIT_REPLY_MARGIN_MS = 30_000;
+
+export function defaultOpTimeout(op: OpName, params: unknown): number {
+  if (op === 'turns.waitReply') {
+    const timeoutMs = (params as OpParamsMap['turns.waitReply']).timeoutMs;
+    return (timeoutMs ?? WAIT_REPLY_DEFAULT_TIMEOUT_MS) + WAIT_REPLY_MARGIN_MS;
+  }
+  return DEFAULT_OP_TIMEOUT_MS[op];
+}
+
+export interface OpsClientHooks {
+  readonly jobId: string;
+  readonly signal: AbortSignal;
+  readonly slot: TaskSlot;
+  readonly available: () => ReadonlySet<OpName> | null;
+  readonly onStart: (op: OpName) => void;
+  readonly onEnd: (op: OpName) => void;
+  readonly onProgress: (op: OpName, event: Readonly<Record<string, unknown>>) => void;
+}
+
+/** Turns one op call into one task in the slot and waits for its result. */
+export function createOpsClient(hooks: OpsClientHooks): OpsClient {
+  return {
+    async call<K extends OpName>(
+      op: K,
+      params: OpParamsMap[K],
+      options: OpCallOptions = {},
+    ): Promise<OpResultMap[K]> {
+      if (hooks.signal.aborted) throw failure('cancelled', 'job was cancelled');
+      const available = hooks.available();
+      if (available !== null && !available.has(op)) {
+        throw failure('unsupported-op', `the extension does not offer ${op}`, {
+          available: [...available],
+        });
+      }
+      const checked = validateOpParams(op, params);
+      if (!checked.ok) {
+        throw failure('bad-request', `invalid params for ${op}`, { issues: checked.issues });
+      }
+      hooks.onStart(op);
+      try {
+        const result = await hooks.slot.run({
+          jobId: hooks.jobId,
+          op,
+          params: checked.value,
+          deadlineMs: options.timeoutMs ?? defaultOpTimeout(op, checked.value),
+          signal: hooks.signal,
+          onProgress: (event) => hooks.onProgress(op, event),
+        });
+        // TaskSlot validated the result with `validateOpResult(op, …)`.
+        return result as OpResultMap[K];
+      } finally {
+        hooks.onEnd(op);
+      }
+    },
+  };
+}

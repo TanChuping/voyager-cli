@@ -1,0 +1,38 @@
+{
+  "name": "@voyager-crew/cli",
+  "version": "0.1.0",
+  "description": "voyager: the local half of the Voyager Local Bridge (serve, pair, ask)",
+  "license": "MIT",
+  "author": "Jesse Zhang",
+  "type": "module",
+  "bin": {
+    "voyager": "dist/cli.mjs"
+  },
+  "files": [
+    "dist/cli.mjs",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.3"
+  },
+  "scripts": {
+    "build": "bun build.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "verify": "bun run format:check && bun run lint:check && bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.0",
+    "@voyager-crew/bridge-protocol": "file:../gemini-voyager/.claude/worktrees/local-bridge/packages/bridge-protocol",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

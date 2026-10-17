@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "useTabs": false,
+  "printWidth": 100,
+  "trailingComma": "all",
+  "endOfLine": "lf",
+  "sortPackageJson": false,
+  "sortImports": {
+    "newlinesBetween": true,
+    "ignoreCase": false,
+    "groups": [["builtin", "external"], ["parent", "sibling", "index"], "unknown"]
+  },
+  "ignorePatterns": ["dist/", "coverage/", "node_modules/"]
+}
