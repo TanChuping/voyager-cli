@@ -6,6 +6,7 @@ import { PluginRegistry } from '../plugins/registry';
 import { statePaths } from '../state/paths';
 import { BridgeFailure, toBridgeError } from '../util/errors';
 import { CLI_VERSION } from '../version';
+import { extensionPluginCommand } from './commands/extensionPlugin';
 import { commandsCommand, statusCommand } from './commands/info';
 import { callCommand, jobCommand } from './commands/job';
 import { pairCommand } from './commands/pair';
@@ -28,6 +29,7 @@ usage:
   voyager commands [--json]            plugin commands and extension ops
   voyager call <op> [--params JSON]    run one extension op (debugging)
   voyager job list | show <id> | wait <id> [--timeout 30m] | cancel <id>
+  voyager plugin create <dir> | check <dir>   write a Voyager extension plugin
   voyager serve [--foreground | --stop]
 
 exit codes: 0 ok, 2 failed (data), 3 needs a person, 4 wait timed out (job continues),
@@ -61,6 +63,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return callCommand(paths, registry, rest);
     case 'job':
       return jobCommand(paths, registry, rest);
+    case 'plugin':
+      return extensionPluginCommand(rest);
     default: {
       const found = registry.findCommand(command);
       if (found === undefined) {
