@@ -39,20 +39,15 @@ bun run format:check
 
 Without building, run it from source with `bun src/cli/main.ts <command>`.
 
-### The protocol package (temporary local path)
+### The protocol package
 
 `@voyager-crew/bridge-protocol` is the source of truth for wire types, validators and
-golden fixtures. It lives in the Voyager repository, and for now this package depends on
-it through a local path:
-
-```json
-"@voyager-crew/bridge-protocol": "file:../gemini-voyager/packages/bridge-protocol"
-```
-
-This is a development-only path. Before publishing, it becomes a pinned npm version.
-Bun links each existing file as a symlink, so edits to existing protocol files show up
-here right away. A file added to the package needs `bun install` again. The package
-ships TypeScript source: `bun build` bundles it, and Vitest inlines it
+golden fixtures. It lives in the Voyager repository (`packages/bridge-protocol`) and is
+installed from npm. A protocol change lands there first: raising its version on Voyager's
+`main` stages a release that a maintainer approves, then this package moves to the new
+version. To try an unreleased protocol change, point the dependency at a local checkout
+for a while (`"file:../gemini-voyager/packages/bridge-protocol"`) and run `bun install`.
+The package ships TypeScript source: `bun build` bundles it, and Vitest inlines it
 (`server.deps.inline`).
 
 ### Trying it by hand without the extension
