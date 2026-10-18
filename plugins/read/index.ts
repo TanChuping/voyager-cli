@@ -1,6 +1,7 @@
 /**
  * Official `read` plugin: open an existing conversation, read its last
- * finished reply into `output/response.md`, close the tab. Nothing is typed or
+ * finished reply into `output/response.md`, close the tab (also after a
+ * failure; `--keep-tab` keeps it). Nothing is typed or
  * sent; a reply still being written is refused (`unverified`), never swapped
  * for an earlier one.
  */
@@ -13,7 +14,13 @@ import {
 } from '../../src/plugins/api';
 import { parseConversationRef } from '../../src/util/conversationRef';
 import { failure } from '../../src/util/errors';
-import { closeBridgeTab, presentResponse, responseBlock, saveResponse } from '../shared/response';
+import {
+  inBridgeTab,
+  openBridgeTab,
+  presentResponse,
+  responseBlock,
+  saveResponse,
+} from '../shared/response';
 
 export interface ReadInput {
   readonly conversationId: string;
@@ -34,31 +41,31 @@ async function run(ctx: JobContext, input: ReadInput): Promise<JobResult> {
   const startedAt = Date.now();
   // The extension checks the tab really shows this conversation (`expect`), and
   // refuses a work-mode one before anything is read.
-  const opened = await ctx.ops.call('conversation.open', { conversationId: input.conversationId });
-  if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
-  // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
-  await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+  const opened = await openBridgeTab(ctx, { conversationId: input.conversationId }, input.keepTab);
+  return inBridgeTab(ctx, opened.tabId, input.keepTab, async () => {
+    if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
+    // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
+    await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
 
-  const read = await ctx.ops.call('turns.read', {
-    conversationId: input.conversationId,
-    latest: true,
-  });
-  const saved = await saveResponse(ctx, read);
-  await ctx.checkpoint('read', { turnKey: read.turnKey, responsePath: saved.responsePath });
-
-  if (!input.keepTab) await closeBridgeTab(ctx, opened.tabId);
-
-  return {
-    data: {
-      conversationUrl: opened.url,
+    const read = await ctx.ops.call('turns.read', {
       conversationId: input.conversationId,
-      responsePath: saved.responsePath,
-      turnKey: read.turnKey,
-      files: [],
-      timings: { startedAt, finishedAt: Date.now() },
-      response: responseBlock(read, saved),
-    },
-  };
+      latest: true,
+    });
+    const saved = await saveResponse(ctx, read);
+    await ctx.checkpoint('read', { turnKey: read.turnKey, responsePath: saved.responsePath });
+
+    return {
+      data: {
+        conversationUrl: opened.url,
+        conversationId: input.conversationId,
+        responsePath: saved.responsePath,
+        turnKey: read.turnKey,
+        files: [],
+        timings: { startedAt, finishedAt: Date.now() },
+        response: responseBlock(read, saved),
+      },
+    };
+  });
 }
 
 export const readPlugin = definePlugin({

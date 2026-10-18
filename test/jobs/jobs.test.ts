@@ -210,6 +210,7 @@ describe('job state machine', () => {
         'conversation.open',
         'model.select',
         'composer.send',
+        'conversation.close',
       ]);
     } finally {
       if (jobDir !== undefined) await chmod(jobDir, 0o700);

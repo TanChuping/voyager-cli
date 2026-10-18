@@ -109,7 +109,7 @@ describe('voyager read', () => {
     expect(fake.protocolErrors).toEqual([]);
   });
 
-  it('fails without closing the tab or remembering anything while the last reply is still written', async () => {
+  it('fails without remembering anything while the last reply is still written, and still closes the tab', async () => {
     const { t, fake } = await setup();
     fake.handlers['turns.read'] = () => {
       throw new OpError('unverified');
@@ -118,7 +118,7 @@ describe('voyager read', () => {
 
     expect(job.status).toBe('failed');
     expect(job.error?.code).toBe('unverified');
-    expect(fake.tasks.map((task) => task.op)).not.toContain('conversation.close');
+    expect(fake.tasks.at(-1)).toMatchObject({ op: 'conversation.close', params: { tabId: 7 } });
     expect(await readLastConversation(t.paths)).toBeUndefined();
   });
 });
@@ -168,7 +168,7 @@ describe('voyager ask in an existing conversation', () => {
     expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open']);
   });
 
-  it('leaves the tab open after a failure, also when it switched the mode to chat', async () => {
+  it('closes the tab after a failure, also when it switched the mode to chat, so the mode goes back', async () => {
     const { t, fake } = await setup();
     fake.handlers['conversation.open'] = () => ({
       tabId: 7,
@@ -189,7 +189,7 @@ describe('voyager ask in an existing conversation', () => {
     const job = await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
 
     expect(job.error?.code).toBe('composer-busy');
-    expect(fake.tasks.map((task) => task.op)).not.toContain('conversation.close');
+    expect(fake.tasks.at(-1)).toMatchObject({ op: 'conversation.close', params: { tabId: 7 } });
   });
 
   it('sends nothing when the mode is unknown, and says only zh-CN labels were measured', async () => {
@@ -211,7 +211,7 @@ describe('voyager ask in an existing conversation', () => {
     expect(job.error?.code).toBe('mode-unknown');
     expect(job.error?.message).toContain('zh-CN');
     expect(job.error?.details).toMatchObject({ lang: 'en-US', composerLabels: ['Ask anything'] });
-    expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open']);
+    expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open', 'conversation.close']);
   });
 
   it('remembers the conversation a plain ask started, for the next --continue', async () => {

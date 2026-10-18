@@ -136,7 +136,12 @@ describe('voyager ask --model', () => {
     const job = await ask(t, { model: 'pro' });
 
     expect(job.error?.code).toBe('composer-busy');
-    expect(ops()).toEqual(['conversation.open', 'model.select', 'composer.send']);
+    expect(ops()).toEqual([
+      'conversation.open',
+      'model.select',
+      'composer.send',
+      'conversation.close',
+    ]);
   });
 
   it('refuses up front, naming the missing op, when the extension cannot select models', async () => {

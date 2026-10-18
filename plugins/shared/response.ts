@@ -1,12 +1,18 @@
 /**
- * What the official plugins share once a reply is read: `output/response.md`
- * with its manifest, the bridge tab closed on success, and the reply printed
- * with the external-content notice.
+ * What the official plugins share: the bridge tab closed when the job ends,
+ * `output/response.md` with its manifest once a reply is read, and the reply
+ * printed with the external-content notice.
  */
-import type { TurnsReadResult } from '@voyager-crew/bridge-protocol';
+import type {
+  ConversationOpenParams,
+  ConversationOpenResult,
+  ErrorCode,
+  TurnsReadResult,
+} from '@voyager-crew/bridge-protocol';
 import { join } from 'node:path';
 
 import type { FinishedJob, JobContext } from '../../src/plugins/api';
+import { toBridgeError } from '../../src/util/errors';
 import { writeFileExclusive } from '../../src/util/files';
 import { sha256Hex } from '../../src/util/hash';
 
@@ -52,7 +58,7 @@ export function responseBlock(read: TurnsReadResult, saved: SavedResponse) {
   };
 }
 
-/** Q4 default: close the tab after a success; a failure never reaches here, so it stays open. */
+/** Close the bridge tab; a close that fails is logged, never the job's outcome. */
 export async function closeBridgeTab(ctx: JobContext, tabId: number): Promise<void> {
   try {
     const closed = await ctx.ops.call('conversation.close', { tabId });
@@ -61,6 +67,72 @@ export async function closeBridgeTab(ctx: JobContext, tabId: number): Promise<vo
     }
   } catch (error) {
     ctx.log.warn('could not close the bridge tab', { error: String(error) });
+  }
+}
+
+/**
+ * Failures that leave the tab open: it is gone or cannot be reached (a close
+ * would fail, or wait 90s for an offline extension), it is the only place to
+ * see whether an unconfirmed prompt went out, or the person has to act in it.
+ */
+const KEEPS_TAB: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  'tab-closed',
+  'document-lost',
+  'extension-offline',
+  'server-unreachable',
+  'send-unverified',
+  'login-required',
+  'challenge',
+  'account-blocked',
+  'rate-limited',
+]);
+
+/**
+ * Run `body` in the tab this job opened, then close the tab unless `keepTab`:
+ * after a success and after a failure alike, since every job opens a fresh tab
+ * and one left behind is never used again. The job's own result or error is
+ * what comes out, whatever the close does.
+ */
+export async function inBridgeTab<T>(
+  ctx: JobContext,
+  tabId: number,
+  keepTab: boolean,
+  body: () => Promise<T>,
+): Promise<T> {
+  let result: T;
+  try {
+    result = await body();
+  } catch (thrown) {
+    // A cancelled job can call no op, so its tab stays until the person closes it.
+    if (closesAfter(ctx, thrown, keepTab)) await closeBridgeTab(ctx, tabId);
+    throw thrown;
+  }
+  if (!keepTab) await closeBridgeTab(ctx, tabId);
+  return result;
+}
+
+/** Whether a job that failed with `thrown` closes its tab; a cancelled job can call no op. */
+function closesAfter(ctx: JobContext, thrown: unknown, keepTab: boolean): boolean {
+  return !keepTab && !ctx.signal.aborted && !KEEPS_TAB.has(toBridgeError(thrown).code);
+}
+
+/**
+ * `conversation.open`, closing the tab a failed open leaves behind: the
+ * extension names it in `details.tabId` once it had opened one (a ready step
+ * that found Work mode or timed out), and the next open would forget it.
+ */
+export async function openBridgeTab(
+  ctx: JobContext,
+  params: ConversationOpenParams,
+  keepTab: boolean,
+): Promise<ConversationOpenResult> {
+  try {
+    return await ctx.ops.call('conversation.open', params);
+  } catch (thrown) {
+    const tabId = toBridgeError(thrown).details?.tabId;
+    const opened = typeof tabId === 'number' && Number.isInteger(tabId) && tabId > 0;
+    if (opened && closesAfter(ctx, thrown, keepTab)) await closeBridgeTab(ctx, tabId);
+    throw thrown;
   }
 }
 

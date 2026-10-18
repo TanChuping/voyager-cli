@@ -12,7 +12,8 @@
  *   this machine last uploaded under that name is skipped.
  * - Removing is immediate and cannot be undone, so `remove` asks on a terminal
  *   and, without one (an agent), runs only with `--yes`.
- * Each job opens its own bridge tab and closes it once it succeeded.
+ * Each job opens its own bridge tab and closes it when it ends, also after a
+ * failure; `--keep-tab` keeps it.
  */
 import type { ProjectFile } from '@voyager-crew/bridge-protocol';
 
@@ -27,7 +28,7 @@ import {
 import { type StagedAttachment, stageAttachments } from '../../src/util/attach/stage';
 import { failure } from '../../src/util/errors';
 import { attachTimeoutMs } from '../ask/index';
-import { closeBridgeTab } from '../shared/response';
+import { inBridgeTab, openBridgeTab } from '../shared/response';
 import { fingerprintOf, rememberUpload } from './fingerprints';
 import { callProjectOp, PROJECT_OPS } from './ops';
 import { resolveProject } from './resolve';
@@ -214,12 +215,13 @@ async function act(
 }
 
 async function run(ctx: JobContext, input: ProjectInput): Promise<JobResult> {
-  const opened = await ctx.ops.call('conversation.open', { new: true });
-  if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
-  await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
-  const data = await act(ctx, input);
-  if (!input.keepTab) await closeBridgeTab(ctx, opened.tabId);
-  return { data: { action: input.action, ...data } };
+  const opened = await openBridgeTab(ctx, { new: true }, input.keepTab);
+  return inBridgeTab(ctx, opened.tabId, input.keepTab, async () => {
+    if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
+    await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+    const data = await act(ctx, input);
+    return { data: { action: input.action, ...data } };
+  });
 }
 
 function fileLines(files: unknown): string[] {

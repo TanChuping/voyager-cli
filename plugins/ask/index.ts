@@ -30,8 +30,9 @@ import { failure } from '../../src/util/errors';
 import { callProjectOp } from '../project/ops';
 import { resolveProject } from '../project/resolve';
 import {
-  closeBridgeTab,
   EXTERNAL_CONTENT_NOTICE,
+  inBridgeTab,
+  openBridgeTab,
   presentResponse,
   responseBlock,
   saveResponse,
@@ -164,40 +165,44 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
   const blobs = await registerAll(ctx, attachments);
   const existing = input.conversationId;
   // For an existing conversation the extension checks the tab shows it (`expect`).
-  const opened = await ctx.ops.call(
-    'conversation.open',
+  const opened = await openBridgeTab(
+    ctx,
     existing === undefined ? { new: true } : { conversationId: existing },
+    input.keepTab,
   );
-  if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
-  if (opened.ready.mode !== 'chat') {
-    const work = opened.ready.mode === 'work';
-    if (!work) {
-      // The extension reads the mode from composer labels measured on the zh-CN UI only.
-      const { lang, composerLabels } = opened.ready.evidence;
+  // Closed when the job ends, also after a failure, unless --keep-tab.
+  return inBridgeTab(ctx, opened.tabId, input.keepTab, async () => {
+    if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
+    if (opened.ready.mode !== 'chat') {
+      const work = opened.ready.mode === 'work';
+      if (!work) {
+        // The extension reads the mode from composer labels measured on the zh-CN UI only.
+        const { lang, composerLabels } = opened.ready.evidence;
+        throw failure(
+          'mode-unknown',
+          `could not confirm ChatGPT is in chat mode (page language ${JSON.stringify(lang ?? '')}, composer labels ${JSON.stringify(composerLabels ?? [])}); the mode labels have only been measured on the Chinese (zh-CN) ChatGPT interface so far`,
+          { lang, composerLabels },
+        );
+      }
       throw failure(
-        'mode-unknown',
-        `could not confirm ChatGPT is in chat mode (page language ${JSON.stringify(lang ?? '')}, composer labels ${JSON.stringify(composerLabels ?? [])}); the mode labels have only been measured on the Chinese (zh-CN) ChatGPT interface so far`,
-        { lang, composerLabels },
+        'mode-unavailable',
+        existing !== undefined
+          ? `conversation ${existing} is a ChatGPT Work conversation; voyager asks only in chat-mode conversations`
+          : `ChatGPT is not in chat mode (${opened.ready.mode})`,
       );
     }
-    throw failure(
-      'mode-unavailable',
-      existing !== undefined
-        ? `conversation ${existing} is a ChatGPT Work conversation; voyager asks only in chat-mode conversations`
-        : `ChatGPT is not in chat mode (${opened.ready.mode})`,
-    );
-  }
-  // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
-  await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
-  if (input.project !== undefined) {
-    const { projectId } = await resolveProject(ctx, input.project);
-    // In chat mode on the project's page, or a failure: the bridge never switches it to Work.
-    const shown = await callProjectOp(ctx, 'project.open', { projectId, view: 'chat' });
-    await ctx.checkpoint('project', { projectId, url: shown.url });
-  }
-  // Before anything is attached or typed: the prompt goes out on the model asked for.
-  const model = await chooseModel(ctx, input.model ?? DEFAULT_ASK_MODEL);
-  return askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened, model });
+    // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
+    await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+    if (input.project !== undefined) {
+      const { projectId } = await resolveProject(ctx, input.project);
+      // In chat mode on the project's page, or a failure: the bridge never switches it to Work.
+      const shown = await callProjectOp(ctx, 'project.open', { projectId, view: 'chat' });
+      await ctx.checkpoint('project', { projectId, url: shown.url });
+    }
+    // Before anything is attached or typed: the prompt goes out on the model asked for.
+    const model = await chooseModel(ctx, input.model ?? DEFAULT_ASK_MODEL);
+    return askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened, model });
+  });
 }
 
 async function askInTab(
@@ -269,8 +274,6 @@ async function askInTab(
   const saved = await saveResponse(ctx, read);
   const { responsePath } = saved;
   await ctx.checkpoint('read', { assistantTurnKey: reply.assistantTurnKey, responsePath });
-
-  if (!input.keepTab) await closeBridgeTab(ctx, opened.tabId);
 
   return {
     data: {

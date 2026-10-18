@@ -84,6 +84,10 @@ voyager job wait <jobId> --timeout 10m --json
 
 Exactly one job runs at a time, and jobs are never queued. Each prompt is submitted **once**. After any exit other than 0, report to the person and let them decide; a second `voyager ask` with the same prompt would send it again. `send-unverified` means the page may have sent it, so the person checks ChatGPT first.
 
+## The browser tab
+
+`ask`, `read` and every `project` command open their own ChatGPT tab and close it when they end, also after a failure. `--keep-tab` leaves it open, for when the person wants to look at the page. A tab the person has to act in stays open by itself: sign-in or a challenge (exit 3), and `send-unverified`.
+
 ## Pairing (the person does this once)
 
 ```sh

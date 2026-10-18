@@ -26,10 +26,12 @@ usage:
         [--project <name|id>]          ask in a new chat of a ChatGPT project (its files are there)
         [--timeout 30m] [--no-wait] [--keep-tab]
   voyager read <link|id> [--json]      save an existing conversation's last finished reply
+        [--keep-tab]                   leave its ChatGPT tab open
   voyager project list | create <name> | files <project>    ChatGPT projects; <project>: name or g-p- id
         | upload <project> <file|folder> replaces a same-name file (ChatGPT ignores re-uploads),
                                        skips one unchanged; a folder goes up as <folder>.zip
         | remove <project> <file> [--yes] deletes at once, no undo; asks, or needs --yes without a tty
+        [--keep-tab]                   any project command: leave its ChatGPT tab open
   voyager status [--json]              serve, pairing and active job
   voyager commands [--json]            plugin commands and extension ops
   voyager call <op> [--params JSON]    run one extension op (debugging)
@@ -39,6 +41,8 @@ usage:
   voyager plugin create <dir> | check <dir>   write a Voyager extension plugin
   voyager serve [--foreground | --stop]
 
+each job opens its own ChatGPT tab and closes it when it ends, also after a failure,
+unless --keep-tab; one you need to look at (sign-in, an unconfirmed send) stays open
 results name the ChatGPT plan the pages last showed (JSON: account; may trail a change)
 exit codes: 0 ok, 2 failed (data), 3 needs a person, 4 wait timed out (job continues),
             5 busy, 6 transient/detached/reply-stalled, 7 not paired or extension offline

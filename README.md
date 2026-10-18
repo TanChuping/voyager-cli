@@ -99,8 +99,10 @@ One job runs at a time. Every result also names your ChatGPT plan (`Pro Lite ($1
 
 ## Good to know
 
-- The bridge opens its own ChatGPT tab and closes it when done. If ChatGPT asks you to sign
-  in or solve a challenge, Voyager CLI stops and says so (exit 3); it never works around it.
+- `ask`, `read` and every `project` command open their own ChatGPT tab and close it when they
+  end, also after a failure; pass `--keep-tab` to leave it open. If ChatGPT asks you to sign in
+  or solve a challenge, Voyager CLI stops, leaves that tab open and says so (exit 3); it never
+  works around it.
 - Commands: `voyager --help`. State lives in `~/.voyager` (or `$VOYAGER_HOME`), private to
   your user.
 - Tested in Chrome. Edge and Firefox builds of Voyager include the bridge too; Safari does not.

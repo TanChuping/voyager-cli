@@ -262,7 +262,7 @@ describe.runIf(registered)('voyager project: jobs', () => {
     expect(job.error?.code).toBe('bad-request');
     expect(job.error?.message).toContain(B);
     expect(job.error?.message).toContain(B2);
-    expect(ops(fake)).toEqual(['conversation.open', 'project.list']);
+    expect(ops(fake)).toEqual(['conversation.open', 'project.list', 'conversation.close']);
   });
 
   it('opens a project given by id without listing, and reads its files', async () => {
@@ -394,6 +394,122 @@ describe.runIf(registered)('voyager project: jobs', () => {
     expect(removed.result).toMatchObject({ outcome: 'removed', name: 'notes.md' });
     expect(await upload()).toMatchObject({ result: { outcome: 'uploaded' } });
     expect(ops(fake).filter((op) => op === 'project.upload')).toHaveLength(2);
+  });
+});
+
+describe.runIf(registered)('voyager project: the bridge tab', () => {
+  const lastOp = (server: FakeExtension) => server.tasks.at(-1);
+
+  it('project files closes the tab it opened', async () => {
+    const { t, fake } = await setup({ [A]: ['repo.zip'] });
+    const input = await prepareProject(['files', A], foreground());
+    const job = await finished(t, await submit(t, 'project', input));
+
+    expect(job.status).toBe('succeeded');
+    expect(lastOp(fake)).toMatchObject({ op: 'conversation.close', params: { tabId: 7 } });
+  });
+
+  it('--keep-tab leaves the tab open', async () => {
+    const { t, fake } = await setup({ [A]: ['repo.zip'] });
+    const input = await prepareProject(['files', A, '--keep-tab'], foreground());
+    const job = await finished(t, await submit(t, 'project', input));
+
+    expect(job.status).toBe('succeeded');
+    expect(ops(fake)).not.toContain('conversation.close');
+  });
+
+  it('closes the tab when the command fails, and reports the failure itself', async () => {
+    const { t, fake } = await setup({ [A]: [] });
+    const job = await finished(
+      t,
+      await submit(t, 'project', {
+        action: 'remove',
+        project: A,
+        name: 'notes.md',
+        keepTab: false,
+      }),
+    );
+
+    expect(job.status).toBe('failed');
+    expect(job.error?.code).toBe('not-found');
+    expect(lastOp(fake)).toMatchObject({ op: 'conversation.close', params: { tabId: 7 } });
+  });
+
+  it('reports the failure itself when closing the tab fails too', async () => {
+    const { t, fake } = await setup({ [A]: [] });
+    fake.handlers['conversation.close'] = () => {
+      throw new OpError('bad-request', 'Only the tab this job opened can be closed.');
+    };
+    const job = await finished(
+      t,
+      await submit(t, 'project', {
+        action: 'remove',
+        project: A,
+        name: 'notes.md',
+        keepTab: false,
+      }),
+    );
+
+    expect(job.error?.code).toBe('not-found');
+    expect(ops(fake)).toContain('conversation.close');
+  });
+
+  it('closes the tab a failed open left behind', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => {
+      throw new OpError('timeout', 'conversation.open did not finish in time.', { tabId: 9 });
+    };
+    const job = await finished(t, await submit(t, 'project', { action: 'list', keepTab: false }));
+
+    expect(job.error).toMatchObject({ code: 'timeout', details: { tabId: 9 } });
+    expect(ops(fake)).toEqual(['conversation.open', 'conversation.close']);
+    expect(lastOp(fake)).toMatchObject({ params: { tabId: 9 } });
+  });
+
+  it('--keep-tab keeps the tab a failed open left behind', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => {
+      throw new OpError('timeout', 'conversation.open did not finish in time.', { tabId: 9 });
+    };
+    const input = await prepareProject(['list', '--keep-tab'], foreground());
+    const job = await finished(t, await submit(t, 'project', input));
+
+    expect(job.error?.code).toBe('timeout');
+    expect(ops(fake)).toEqual(['conversation.open']);
+  });
+
+  it('an open that failed before any tab opened closes nothing', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => {
+      throw new OpError('tab-closed', 'Could not open a tab: no window');
+    };
+    const job = await finished(t, await submit(t, 'project', { action: 'list', keepTab: false }));
+
+    expect(job.error).toMatchObject({
+      code: 'tab-closed',
+      message: expect.stringContaining('no window'),
+    });
+    expect(ops(fake)).toEqual(['conversation.open']);
+  });
+
+  it('leaves the tab open for the person to sign in when ChatGPT is logged out', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => ({
+      tabId: 7,
+      url: 'https://chatgpt.com/',
+      docNonce: 'nonce-1',
+      ready: {
+        url: 'https://chatgpt.com/',
+        conversationId: null,
+        loggedIn: false,
+        mode: 'chat',
+        evidence: {},
+      },
+    });
+    const job = await finished(t, await submit(t, 'project', { action: 'list', keepTab: false }));
+
+    expect(job.error?.code).toBe('login-required');
+    expect(ops(fake)).toEqual(['conversation.open']);
   });
 });
 
