@@ -51,8 +51,8 @@ function taskReply(reply: TaskReply): Reply {
 
 /**
  * One chunk of an upload, as base64. Served only while the blob's own job
- * runs `composer.attach`, so a paired extension cannot read a job's files
- * at any other time.
+ * runs `composer.attach` or `project.upload`, so a paired extension cannot
+ * read a job's files at any other time.
  */
 async function readBlob(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   requirePaired(core, ctx);
@@ -61,7 +61,8 @@ async function readBlob(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   const blob = core.blobs.get(ctx.params[0]);
   if (blob === undefined) throw failure('not-found', 'no such blob');
   const task = core.slot.current();
-  if (task === undefined || task.jobId !== blob.jobId || task.op !== 'composer.attach') {
+  const uploads = task?.op === 'composer.attach' || task?.op === 'project.upload';
+  if (task === undefined || task.jobId !== blob.jobId || !uploads) {
     throw failure('gone', 'no upload of this blob is running');
   }
   const { offset, length } = checked.value;

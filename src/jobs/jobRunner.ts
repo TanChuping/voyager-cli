@@ -11,7 +11,7 @@ import {
   type OpName,
 } from '@voyager-crew/bridge-protocol';
 
-import type { CommandDef, JobContext } from '../plugins/api';
+import type { CommandDef, JobContext, PluginState } from '../plugins/api';
 import type { PluginRegistry } from '../plugins/registry';
 import { type ExtensionState, policyFailure } from '../server/extensionState';
 import type { LastConversation } from '../state/lastConversation';
@@ -32,6 +32,8 @@ export interface JobRunnerDeps {
   readonly blobs: BlobStore;
   /** Told about the conversation of each job that succeeds with one (`ask --continue`). */
   readonly rememberConversation?: (entry: LastConversation) => Promise<void>;
+  /** Each plugin's own state; kept in memory for the runner's life when not given. */
+  readonly pluginState?: (plugin: string) => PluginState;
 }
 
 interface Active {
@@ -42,6 +44,7 @@ interface Active {
 
 export class JobRunner {
   private active: Active | undefined;
+  private readonly memoryState = new Map<string, unknown>();
 
   constructor(private readonly deps: JobRunnerDeps) {}
 
@@ -190,6 +193,10 @@ export class JobRunner {
             },
           );
         }
+      },
+      state: this.deps.pluginState?.(job.plugin) ?? {
+        read: async () => this.memoryState.get(job.plugin),
+        write: async (value) => void this.memoryState.set(job.plugin, value),
       },
       log: {
         info: (message, fields) => {

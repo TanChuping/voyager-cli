@@ -1,6 +1,7 @@
 import { BRIDGE_PATHS, type JobSubmitResponse } from '@voyager-crew/bridge-protocol';
 import { mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 
 import { ensureServe } from '../../client/serveClient';
 import type { CommandDef, ForegroundContext, VoyagerPlugin } from '../../plugins/api';
@@ -48,6 +49,20 @@ function stagingFor(paths: StatePaths): () => Promise<string> {
   };
 }
 
+/** A yes/no question on the terminal, default no; only when a person is there to answer. */
+function terminalConfirm(): ((question: string) => Promise<boolean>) | undefined {
+  if (!process.stdin.isTTY || !process.stderr.isTTY) return undefined;
+  return async (question) => {
+    const prompt = createInterface({ input: process.stdin, output: process.stderr });
+    try {
+      const answer = await prompt.question(`${question} [y/N] `);
+      return /^y(?:es)?$/i.test(answer.trim());
+    } finally {
+      prompt.close();
+    }
+  };
+}
+
 /** `voyager <command> …` for a plugin command: prepare here, run in serve, wait, print. */
 export async function pluginCommand(
   paths: StatePaths,
@@ -56,11 +71,13 @@ export async function pluginCommand(
   argv: readonly string[],
 ): Promise<number> {
   const args = parse(argv, { ...WAIT_OPTIONS, ...found.def.options });
+  const confirm = terminalConfirm();
   const fg: ForegroundContext = {
     cwd: process.cwd(),
     stagingDir: stagingFor(paths),
     note,
     lastConversation: () => readLastConversation(paths),
+    ...(confirm === undefined ? {} : { confirm }),
   };
   const input = await found.def.prepare(fg, args);
   if (args.options['dry-run'] === true) {

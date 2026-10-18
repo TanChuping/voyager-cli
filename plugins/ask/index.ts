@@ -9,6 +9,10 @@ import type { BlobRef, ConversationOpenResult } from '@voyager-crew/bridge-proto
  * `--attach` packs in the foreground (`stageAttachments`: files as they are,
  * folders as zips without credentials); `run` registers each staged file as a
  * blob, has the page attach them all, then sends with `expectAttachments`.
+ *
+ * `--project <name|id>` asks in a new chat inside that ChatGPT project: the tab
+ * moves to the project in-app (`project.open`), which leaves it in chat mode or
+ * fails; the project's files are there for the reply, beside any `--attach`.
  */
 import { basename } from 'node:path';
 
@@ -22,6 +26,8 @@ import {
 import { type StagedAttachment, stageAttachments } from '../../src/util/attach/stage';
 import { parseConversationRef } from '../../src/util/conversationRef';
 import { failure } from '../../src/util/errors';
+import { callProjectOp } from '../project/ops';
+import { resolveProject } from '../project/resolve';
 import {
   closeBridgeTab,
   EXTERNAL_CONTENT_NOTICE,
@@ -47,6 +53,8 @@ export interface AskInput {
   readonly attachments?: readonly StagedAttachment[];
   /** Defaults to `pro`; `current` keeps the page's selection. */
   readonly model?: AskModel;
+  /** Ask in a new chat of this project (a name, an id or a link). */
+  readonly project?: string;
 }
 
 const PHASE_C_OPTIONS = ['out'] as const;
@@ -102,6 +110,17 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
   const prompt = argv.positionals.join(' ').trim();
   if (prompt === '') throw failure('bad-request', 'usage: voyager ask "<prompt>"');
   const model = parseAskModel(argv.options.model);
+  const project =
+    typeof argv.options.project === 'string' ? argv.options.project.trim() : undefined;
+  if (project !== undefined) {
+    if (project === '') throw failure('bad-request', '--project needs a project name or id');
+    if (argv.options.chat !== undefined || argv.options.continue === true) {
+      throw failure(
+        'bad-request',
+        '--project opens a new chat in the project; --chat and --continue already name a conversation (a project chat continues with them alone)',
+      );
+    }
+  }
   const conversationId = await targetConversation(fg, argv);
   const raw = argv.options.attach;
   const paths = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]).map(String);
@@ -113,6 +132,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     prompt,
     keepTab: argv.options['keep-tab'] === true,
     model,
+    ...(project === undefined ? {} : { project }),
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(attachments.length > 0 ? { attachments } : {}),
   };
@@ -168,6 +188,12 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
   }
   // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
   await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+  if (input.project !== undefined) {
+    const { projectId } = await resolveProject(ctx, input.project);
+    // In chat mode on the project's page, or a failure: the bridge never switches it to Work.
+    const shown = await callProjectOp(ctx, 'project.open', { projectId, view: 'chat' });
+    await ctx.checkpoint('project', { projectId, url: shown.url });
+  }
   // Before anything is attached or typed: the prompt goes out on the model asked for.
   const model = await chooseModel(ctx, input.model ?? DEFAULT_ASK_MODEL);
   return askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened, model });
@@ -295,6 +321,11 @@ export const askPlugin = definePlugin({
         chat: {
           type: 'string',
           summary: 'ask in this existing conversation (a chatgpt.com link or its id)',
+        },
+        project: {
+          type: 'string',
+          summary:
+            'ask in a new chat of this ChatGPT project (its name or g-p- id); its files are there',
         },
         continue: {
           type: 'boolean',

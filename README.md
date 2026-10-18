@@ -34,9 +34,28 @@ voyager job wait <jobId> --timeout 10m --json    # exit 4: still running, wait a
 `job wait` prints the same result and exit code as `ask` once the job ends. Never resend
 the prompt after exit 4: the job is still running.
 
+ChatGPT projects keep files every chat in the project can read:
+
+```sh
+voyager project list                          # g-p-<id>  name, from the sidebar
+voyager project create "论文 Q3"
+voyager project files "论文 Q3"               # <project>: its name or g-p- id
+voyager project upload "论文 Q3" ./thesis     # a folder goes up as thesis.zip, credentials left out
+voyager project remove "论文 Q3" notes.md --yes
+voyager ask --project "论文 Q3" "Summarise thesis.zip"   # a new chat in the project
+```
+
+ChatGPT ignores an upload under a name the project already holds, without a word, so
+`upload` replaces: it removes the old file, uploads, and checks the new one is listed once.
+A file unchanged since this machine uploaded it is skipped (fingerprints in
+`plugin-state/project.json`). Removing is immediate and cannot be undone: `remove` asks on a
+terminal, and without one it runs only with `--yes`. Put material many chats need in the
+project; use `--attach` for files one question needs.
+
 State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
 `serve.json`, `serve.lock`, `cli-token` and `pairings.json` (both 0600), `jobs/<id>/`,
-`last-conversation.json` (0600, what `--continue` uses) and `logs/serve.log`.
+`last-conversation.json` (0600, what `--continue` uses), `plugin-state/` (each plugin's own
+JSON, 0600) and `logs/serve.log`.
 `skills/voyager/SKILL.md` tells an agent how to use the CLI.
 
 ## Development

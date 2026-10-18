@@ -32,7 +32,27 @@ voyager ask --json --chat <link|id> "Follow-up"     # send into that conversatio
 voyager ask --json --continue "And the edge cases?" # the conversation of the last ask/read that succeeded
 ```
 
+To follow up, pass the `conversationId` your own earlier `ask` returned with `--chat`. `--continue` takes the last conversation any voyager job on this machine used, which another agent may have changed in between; it is for a person typing at a terminal.
+
 Links may be `/c/<id>`, `/g/<gpt-or-project>/c/<id>`, or the bare id. `read` sends nothing; if the last reply is still being written it fails with `unverified`, so wait and read again later. `--continue` without an earlier success is `bad-request`; `--chat` and `--continue` exclude each other. A ChatGPT Work conversation is `mode-unavailable`: voyager only asks in chat-mode conversations, so tell the person.
+
+## Projects
+
+A ChatGPT project holds files ("sources") that every chat in it can read. `<project>` is the name the sidebar shows or its id (`g-p-…`); two projects with the same name are `bad-request` listing both ids, so use the id.
+
+```sh
+voyager project list --json                      # projects: [{projectId, name}]
+voyager project create --json "Thesis"           # refused if the name is taken
+voyager project files --json <project>           # files: [{name, uploadedAt}]
+voyager project upload --json <project> <file|folder>
+voyager project remove --json <project> <file name> --yes
+voyager ask --json --project <project> "Use thesis.zip to …"   # a new chat in the project
+```
+
+- ChatGPT silently ignores an upload under a name the project already holds and keeps the old file. `upload` therefore replaces: it removes the old file, uploads, and checks the project lists the new one exactly once. `outcome` is `uploaded`, `replaced` (`replacedUnknown: true` when this machine had not uploaded the old copy) or `unchanged` (same content as this machine's last upload; nothing sent). A folder goes up as `<folder>.zip`, credentials left out, like `--attach`.
+- `remove` deletes at once and cannot be undone. Without a terminal it does nothing unless you pass `--yes` (exit 2, `error.details.reason: "confirmation-required"`). Pass `--yes` only when the person asked for that file to go.
+- What goes where: material many questions draw on (a repository, a paper, data) goes in the project once; a file one question needs goes with that question as `--attach`. `--project` and `--attach` combine. `--project` excludes `--chat`/`--continue`; to follow up in a project chat, pass its `conversationId` or link with `--chat`.
+- In a project the bridge only ever uses chat mode with GPT-6 Pro (or `--model`): a project page that opens in Work is switched to chat, and one that cannot be is `mode-unavailable`.
 
 ## Long replies
 

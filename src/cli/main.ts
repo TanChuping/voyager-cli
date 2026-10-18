@@ -23,8 +23,13 @@ usage:
         [--attach <file|folder>]...    upload files; folders are zipped, credentials left out
         [--dry-run]                    pack attachments and print the job input, send nothing
         [--chat <link|id> | --continue] ask in an existing conversation, or the last one used
+        [--project <name|id>]          ask in a new chat of a ChatGPT project (its files are there)
         [--timeout 30m] [--no-wait] [--keep-tab]
   voyager read <link|id> [--json]      save an existing conversation's last finished reply
+  voyager project list | create <name> | files <project>    ChatGPT projects; <project>: name or g-p- id
+        | upload <project> <file|folder> replaces a same-name file (ChatGPT ignores re-uploads),
+                                       skips one unchanged; a folder goes up as <folder>.zip
+        | remove <project> <file> [--yes] deletes at once, no undo; asks, or needs --yes without a tty
   voyager status [--json]              serve, pairing and active job
   voyager commands [--json]            plugin commands and extension ops
   voyager call <op> [--params JSON]    run one extension op (debugging)

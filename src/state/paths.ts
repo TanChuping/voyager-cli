@@ -17,6 +17,8 @@ export interface StatePaths {
   readonly serveLog: string;
   /** The conversation of the last succeeded job, for `ask --continue` (0600). */
   readonly lastConversation: string;
+  /** Each plugin's own JSON state, kept across jobs (`voyager project upload` fingerprints). */
+  readonly pluginState: string;
 }
 
 export function statePaths(home = defaultHome()): StatePaths {
@@ -32,6 +34,7 @@ export function statePaths(home = defaultHome()): StatePaths {
     logs: join(home, 'logs'),
     serveLog: join(home, 'logs', 'serve.log'),
     lastConversation: join(home, 'last-conversation.json'),
+    pluginState: join(home, 'plugin-state'),
   };
 }
 

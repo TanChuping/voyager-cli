@@ -23,6 +23,12 @@ const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<Exclude<OpName, 'turns.waitReply'>,
   'composer.send': 30_000,
   'turns.read': 30_000,
   'files.download': 120_000,
+  'project.list': 20_000,
+  'project.create': 45_000,
+  'project.open': 60_000,
+  'project.files': 30_000,
+  'project.upload': 120_000,
+  'project.remove': 30_000,
 };
 const WAIT_REPLY_MARGIN_MS = 30_000;
 

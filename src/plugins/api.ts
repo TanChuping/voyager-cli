@@ -39,6 +39,17 @@ export interface ForegroundContext {
   lastConversation(): Promise<
     { readonly conversationId: string; readonly url?: string } | undefined
   >;
+  /**
+   * Ask the person at the terminal a yes/no question (default no). Undefined
+   * when nobody can answer: no terminal on stdin and stderr (an agent, a pipe).
+   */
+  readonly confirm?: (question: string) => Promise<boolean>;
+}
+
+/** A plugin's own JSON state, kept across its jobs; `read` is undefined until written. */
+export interface PluginState {
+  read(): Promise<unknown>;
+  write(value: unknown): Promise<void>;
 }
 
 export interface Logger {
@@ -87,6 +98,8 @@ export interface JobContext {
   progress(event: Readonly<Record<string, unknown>>): void;
   checkpoint(name: string, data: Readonly<Record<string, unknown>>): Promise<void>;
   readonly log: Logger;
+  /** This plugin's state under `~/.voyager/plugin-state/`. */
+  readonly state: PluginState;
 }
 
 /** What a finished job reports; `data` becomes the job's `result`. */

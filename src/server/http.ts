@@ -13,6 +13,7 @@ import { TaskSlot } from '../jobs/taskSlot';
 import { PluginRegistry } from '../plugins/registry';
 import { recordLastConversation } from '../state/lastConversation';
 import type { StatePaths } from '../state/paths';
+import { pluginStateStore } from '../state/pluginState';
 import { BridgeFailure, failure } from '../util/errors';
 import { silentLogger, type Logger } from '../util/log';
 import { ExtensionState } from './extensionState';
@@ -116,6 +117,7 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
     isPaired: () => pairing.current !== null,
     log,
     rememberConversation: (entry) => recordLastConversation(options.paths, entry),
+    pluginState: (plugin) => pluginStateStore(options.paths, plugin),
   });
   const core: ServerCore = {
     paths: options.paths,
