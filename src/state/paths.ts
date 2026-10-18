@@ -11,6 +11,8 @@ export interface StatePaths {
   readonly cliToken: string;
   readonly pairings: string;
   readonly jobs: string;
+  /** Attachments a foreground command packed before its job existed; serve moves them out. */
+  readonly staging: string;
   readonly logs: string;
   readonly serveLog: string;
 }
@@ -24,6 +26,7 @@ export function statePaths(home = defaultHome()): StatePaths {
     cliToken: join(home, 'cli-token'),
     pairings: join(home, 'pairings.json'),
     jobs: join(home, 'jobs'),
+    staging: join(home, 'staging'),
     logs: join(home, 'logs'),
     serveLog: join(home, 'logs', 'serve.log'),
   };
@@ -39,5 +42,6 @@ export async function ensureHome(paths: StatePaths): Promise<void> {
   await mkdir(paths.home, { recursive: true, mode: 0o700 });
   await chmod(paths.home, 0o700);
   await mkdir(paths.jobs, { recursive: true, mode: 0o700 });
+  await mkdir(paths.staging, { recursive: true, mode: 0o700 });
   await mkdir(paths.logs, { recursive: true, mode: 0o700 });
 }

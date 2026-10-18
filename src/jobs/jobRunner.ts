@@ -16,6 +16,7 @@ import type { PluginRegistry } from '../plugins/registry';
 import { type ExtensionState, policyFailure } from '../server/extensionState';
 import { failure, toBridgeError } from '../util/errors';
 import type { Logger } from '../util/log';
+import type { BlobStore } from './blobStore';
 import { isTerminal, type JobRecord, type JobStore } from './jobStore';
 import { createOpsClient } from './opsClient';
 import type { TaskSlot } from './taskSlot';
@@ -27,6 +28,7 @@ export interface JobRunnerDeps {
   readonly extension: ExtensionState;
   readonly isPaired: () => boolean;
   readonly log: Logger;
+  readonly blobs: BlobStore;
 }
 
 interface Active {
@@ -120,6 +122,7 @@ export class JobRunner {
     }
     // The page may still hold an abandoned task; the job ends only when it lets go.
     await this.deps.slot.idle();
+    this.deps.blobs.forgetJob(job.jobId);
     this.deps.store.update(job, {
       status,
       ...(error === undefined ? {} : { error }),
@@ -151,16 +154,17 @@ export class JobRunner {
       },
       onProgress: (op, event) => store.appendEvent(job.jobId, 'progress', { op, event }),
     });
-    const phaseC = (): Promise<never> =>
-      Promise.reject(
-        failure('bad-request', 'attachments and downloads are not available yet (Phase C)'),
-      );
+    const notYet = (): Promise<never> =>
+      Promise.reject(failure('bad-request', 'downloads are not available yet (Phase C)'));
     return {
       jobId: job.jobId,
       signal: controller.signal,
       outputDir: store.outputDir(job.jobId),
       ops,
-      blobs: { register: phaseC, save: phaseC },
+      blobs: {
+        register: (path, options) => this.deps.blobs.register(job.jobId, path, options),
+        save: notYet,
+      },
       progress: (event) => store.appendEvent(job.jobId, 'progress', event),
       checkpoint: async (name, data) => {
         job.checkpoints[name] = data;

@@ -1,8 +1,15 @@
 /**
  * Extension endpoints (spec §2.2): bearer ext-token and the paired Origin.
- * Blob endpoints arrive with attachments in Phase C.
+ * Uploads are read with `POST /v1/ext/blobs/:id/read` (a POST, so the
+ * service worker's request always carries its Origin); downloads arrive with
+ * `files.download`.
  */
-import { BRIDGE_PATHS, validateMessage, type PollResponse } from '@voyager-crew/bridge-protocol';
+import {
+  BRIDGE_PATHS,
+  validateMessage,
+  type BlobChunk,
+  type PollResponse,
+} from '@voyager-crew/bridge-protocol';
 
 import type { TaskReply } from '../../jobs/taskSlot';
 import { failure } from '../../util/errors';
@@ -40,6 +47,28 @@ function taskReply(reply: TaskReply): Reply {
         failure('bad-request', 'invalid op result', { issues: reply.issues }).error,
       );
   }
+}
+
+/**
+ * One chunk of an upload, as base64. Served only while the blob's own job
+ * runs `composer.attach`, so a paired extension cannot read a job's files
+ * at any other time.
+ */
+async function readBlob(core: ServerCore, ctx: RouteContext): Promise<Reply> {
+  requirePaired(core, ctx);
+  const checked = validateMessage('blobChunkRange', ctx.body);
+  if (!checked.ok) throw failure('bad-request', 'invalid chunk range', { issues: checked.issues });
+  const blob = core.blobs.get(ctx.params[0]);
+  if (blob === undefined) throw failure('not-found', 'no such blob');
+  const task = core.slot.current();
+  if (task === undefined || task.jobId !== blob.jobId || task.op !== 'composer.attach') {
+    throw failure('gone', 'no upload of this blob is running');
+  }
+  const { offset, length } = checked.value;
+  if (offset + length > blob.size) throw failure('bad-request', 'the range lies outside the blob');
+  const bytes = await core.blobs.read(blob, offset, length);
+  const chunk: BlobChunk = { blobId: blob.blobId, offset, base64: bytes.toString('base64') };
+  return { status: 200, data: chunk };
 }
 
 async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
@@ -128,6 +157,12 @@ export function extRoutes(core: ServerCore): Route[] {
         if (!checked.ok) throw failure('bad-request', 'invalid result', { issues: checked.issues });
         return taskReply(core.slot.result(ctx.params[0], checked.value));
       },
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/ext/blobs/${TASK}/read$`),
+      access: 'ext',
+      handle: (ctx) => readBlob(core, ctx),
     },
     {
       method: 'POST',

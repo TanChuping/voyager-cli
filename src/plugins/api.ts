@@ -28,8 +28,11 @@ export interface ParsedArgs {
 
 export interface ForegroundContext {
   readonly cwd: string;
-  /** Copy a local file into the job's `input/` (Phase C: attachments). */
-  stage(path: string): Promise<never>;
+  /**
+   * A fresh folder under `~/.voyager/staging/` for files this command packs
+   * before its job exists; `run` hands them to `ctx.blobs.register`.
+   */
+  stagingDir(): Promise<string>;
   /** Progress for the person at the terminal (stderr). */
   note(message: string): void;
 }
@@ -52,6 +55,14 @@ export interface OpsClient {
   ): Promise<OpResultMap[K]>;
 }
 
+/** What the foreground recorded about a staged file; `register` refuses a file that differs. */
+export interface BlobRegisterOptions {
+  readonly name?: string;
+  readonly mime?: string;
+  readonly size?: number;
+  readonly sha256?: string;
+}
+
 export interface SavedFile {
   readonly path: string;
   readonly name: string;
@@ -64,9 +75,9 @@ export interface JobContext {
   readonly signal: AbortSignal;
   readonly outputDir: string;
   readonly ops: OpsClient;
-  /** Phase C: blob upload and download. Both throw until then. */
+  /** Uploads: `register` takes a staged file into the job; `save` (downloads) is not available yet. */
   readonly blobs: {
-    register(path: string): Promise<BlobRef>;
+    register(path: string, options?: BlobRegisterOptions): Promise<BlobRef>;
     save(blob: BlobRef, name: string): Promise<SavedFile>;
   };
   progress(event: Readonly<Record<string, unknown>>): void;

@@ -6,6 +6,7 @@ import { BRIDGE_HOST, MAX_JSON_BODY_BYTES, POLL_HOLD_MS } from '@voyager-crew/br
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import { BlobStore } from '../jobs/blobStore';
 import { JobRunner } from '../jobs/jobRunner';
 import { JobStore } from '../jobs/jobStore';
 import { TaskSlot } from '../jobs/taskSlot';
@@ -71,6 +72,7 @@ export interface ServerCore {
   readonly store: JobStore;
   readonly runner: JobRunner;
   readonly registry: PluginRegistry;
+  readonly blobs: BlobStore;
   readonly pollHoldMs: number;
   /** Ends a held poll; set while one is held. */
   heldPoll: (() => void) | undefined;
@@ -100,7 +102,9 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
   });
   const extension = new ExtensionState();
   const registry = options.registry ?? new PluginRegistry();
+  const blobs = new BlobStore(options.paths, (jobId) => store.jobDir(jobId));
   const runner = new JobRunner({
+    blobs,
     store,
     slot,
     registry,
@@ -118,6 +122,7 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
     store,
     runner,
     registry,
+    blobs,
     pollHoldMs: options.pollHoldMs ?? POLL_HOLD_MS,
     heldPoll: undefined,
   };

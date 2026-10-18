@@ -19,6 +19,8 @@ const USAGE = `voyager ${CLI_VERSION}: drive ChatGPT through the Voyager extensi
 usage:
   voyager pair [--revoke]              pair the browser extension (one-time code)
   voyager ask "<prompt>" [--json]      new conversation, send, wait, save response.md
+        [--attach <file|folder>]...    upload files; folders are zipped, credentials left out
+        [--dry-run]                    pack attachments and print the job input, send nothing
         [--timeout 30m] [--no-wait] [--keep-tab]
   voyager status [--json]              serve, pairing and active job
   voyager commands [--json]            plugin commands and extension ops
