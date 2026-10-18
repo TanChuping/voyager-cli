@@ -99,6 +99,19 @@ One job runs at a time. Every result also names your ChatGPT plan (`Pro Lite ($1
   your user.
 - Tested in Chrome. Edge and Firefox builds of Voyager include the bridge too; Safari does not.
 
+## Disclaimer
+
+- Voyager and Voyager CLI are community open-source projects. They are not affiliated with or
+  endorsed by OpenAI.
+- The bridge automates ChatGPT on the web in your own signed-in browser. OpenAI's
+  [Terms of Use](https://openai.com/policies/terms-of-use/) restrict extracting output by automated or programmatic means, so decide
+  for yourself whether your use complies before you rely on it. Any limits placed on your account
+  as a result are your own risk.
+- Similar tools take the same line: [oracle](https://github.com/steipete/oracle), for example, makes its browser mode an opt-in
+  experimental feature and points people who want to avoid the risk to the API. If you need a
+  supported route, use the OpenAI API.
+- The bridge is for your own convenience on your own computer: connect only your own account, do not use it to serve other people, share an account or resell usage, and use it only for lawful purposes.
+
 ## License
 
 MIT. Development notes are in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -89,6 +89,13 @@ Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 Voyager
 - 全部命令见 `voyager --help`。状态保存在 `~/.voyager`（或 `$VOYAGER_HOME`），只有你的用户能读。
 - 已在 Chrome 中测试。Edge 和 Firefox 版的 Voyager 也带这个桥；Safari 版没有。
 
+## 须知与免责
+
+- Voyager 和 Voyager CLI 是社区开源项目，与 OpenAI 无关，也没有得到 OpenAI 的认可。
+- 本地桥会在你自己登录的浏览器里自动操作 ChatGPT 网页版。OpenAI 的[使用条款](https://openai.com/policies/terms-of-use/)限制以自动或程序化的方式提取输出，使用前请自行判断是否符合条款；账号因此受到的任何限制，由你自己承担。
+- 同类工具也是这样处理的：例如 [oracle](https://github.com/steipete/oracle) 把浏览器模式作为需要主动开启的实验功能，并建议在意风险的人改用 API。需要有保障的用法，请使用 OpenAI API。
+- 本地桥是给你在自己电脑上、为自己方便而用的：只连你自己的账号，不要拿它对外提供服务、共享账号或转卖额度，也只用于合法用途。
+
 ## 许可证
 
 MIT。开发说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
