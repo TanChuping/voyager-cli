@@ -52,7 +52,7 @@ export function responseBlock(read: TurnsReadResult, saved: SavedResponse) {
   };
 }
 
-/** Q4 default: close the tab after a success; a failure never reaches here, so it stays open. */
+/** Q4 default: close the tab after a success; after a failure only when the mode needs switching back. */
 export async function closeBridgeTab(ctx: JobContext, tabId: number): Promise<void> {
   try {
     const closed = await ctx.ops.call('conversation.close', { tabId });

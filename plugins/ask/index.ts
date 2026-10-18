@@ -1,4 +1,4 @@
-import type { BlobRef } from '@voyager-crew/bridge-protocol';
+import type { BlobRef, ConversationOpenResult } from '@voyager-crew/bridge-protocol';
 /**
  * Official `ask` plugin. New conversation (or an existing one: `--chat`, or
  * `--continue` for the last job's) → attach (with `--attach`) → send → wait
@@ -154,9 +154,36 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
         : `ChatGPT is not in chat mode (${opened.ready.mode})`,
     );
   }
-  // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
-  await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+  try {
+    // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
+    await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+    return await askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened });
+  } catch (error) {
+    // The mode switch is account-wide and only a close switches it back: a failure must not leave it.
+    if (opened.ready.switchedMode !== undefined && !input.keepTab) {
+      await closeBridgeTab(ctx, opened.tabId);
+    }
+    throw error;
+  }
+}
 
+async function askInTab(
+  ctx: JobContext,
+  input: AskInput,
+  {
+    startedAt,
+    blobs,
+    attachments,
+    existing,
+    opened,
+  }: {
+    readonly startedAt: number;
+    readonly blobs: readonly BlobRef[];
+    readonly attachments: readonly StagedAttachment[];
+    readonly existing: string | undefined;
+    readonly opened: ConversationOpenResult;
+  },
+): Promise<JobResult> {
   if (blobs.length > 0) {
     const bytes = blobs.reduce((sum, blob) => sum + blob.size, 0);
     const attached = await ctx.ops.call(

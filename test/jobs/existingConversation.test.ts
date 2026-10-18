@@ -168,6 +168,44 @@ describe('voyager ask in an existing conversation', () => {
     expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open']);
   });
 
+  it('switches ChatGPT back to Work when the ask fails after switching it to chat', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => ({
+      tabId: 7,
+      url: 'https://chatgpt.com/',
+      docNonce: 'nonce-1',
+      ready: {
+        url: 'https://chatgpt.com/',
+        conversationId: null,
+        loggedIn: true,
+        mode: 'chat',
+        switchedMode: { from: 'work', to: 'chat' },
+        evidence: {},
+      },
+    });
+    fake.handlers['composer.send'] = () => {
+      throw new OpError('composer-busy');
+    };
+    const job = await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
+
+    expect(job.error?.code).toBe('composer-busy');
+    expect(fake.tasks.map((task) => [task.op, task.params])).toContainEqual([
+      'conversation.close',
+      { tabId: 7 },
+    ]);
+  });
+
+  it('leaves the tab open after a failure when it never switched the mode', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['composer.send'] = () => {
+      throw new OpError('composer-busy');
+    };
+    const job = await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
+
+    expect(job.error?.code).toBe('composer-busy');
+    expect(fake.tasks.map((task) => task.op)).not.toContain('conversation.close');
+  });
+
   it('sends nothing when the mode is unknown, and says only zh-CN labels were measured', async () => {
     const { t, fake } = await setup();
     fake.handlers['conversation.open'] = () => ({
