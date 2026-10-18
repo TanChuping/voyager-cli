@@ -7,6 +7,7 @@ import {
 
 import { ensureServe } from '../../client/serveClient';
 import type { StatePaths } from '../../state/paths';
+import { accountJson, describeAccount } from '../accountPlan';
 import { parse } from '../args';
 import { note, printJson, printLine } from '../output';
 
@@ -15,7 +16,7 @@ export async function statusCommand(paths: StatePaths, argv: readonly string[]):
   const client = await ensureServe(paths);
   const status = await client.request<StatusResponse>('GET', BRIDGE_PATHS.status);
   if (args.options.json === true) {
-    printJson({ ...status, port: client.port });
+    printJson({ ...status, port: client.port, ...accountJson(status.extension.account) });
     return 0;
   }
   const ext = status.extension;
@@ -30,6 +31,12 @@ export async function statusCommand(paths: StatePaths, argv: readonly string[]):
     if (ext.policy !== null) {
       printLine(`policy: revision ${ext.policy.revision}, ${ext.policy.state}`);
     }
+    const seenAt = ext.account?.observedAt;
+    const age =
+      seenAt === undefined
+        ? ''
+        : `, seen ${Math.max(0, Math.round((Date.now() - seenAt) / 60_000))} min ago`;
+    printLine(`${describeAccount(ext.account)}${ext.account ? age : ''}`);
   }
   printLine(
     status.activeJob === undefined
@@ -59,10 +66,11 @@ export async function commandsCommand(paths: StatePaths, argv: readonly string[]
 /** Before a job: say so when the extension has not been heard from lately. */
 export async function warnIfExtensionAway(
   client: Awaited<ReturnType<typeof ensureServe>>,
-): Promise<void> {
+): Promise<StatusResponse> {
   const status = await client.request<StatusResponse>('GET', BRIDGE_PATHS.status);
   const last = status.extension.lastPollAt;
   if (status.extension.paired && (last === null || Date.now() - last > EXTENSION_OFFLINE_MS)) {
     note('Waiting for the extension to connect (is the browser open with the ChatGPT bridge on?)…');
   }
+  return status;
 }

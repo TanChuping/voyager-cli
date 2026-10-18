@@ -106,6 +106,8 @@ describe('voyager serve lifecycle', () => {
   it('is started by the first command that needs it, and only once under a race', async () => {
     const runs = await Promise.all([1, 2, 3].map(() => voyager(['status', '--json'])));
     for (const run of runs) expect(run.code, run.stderr).toBe(0);
+    // No extension has reported a plan yet, and the output says so rather than guessing.
+    expect(json(runs[0])).toMatchObject({ account: null, accountNote: 'not-observed-yet' });
     const pid = await servePid();
     expect(isAlive(pid)).toBe(true);
     await until(() => daemons() === 1, 5_000);
@@ -151,10 +153,21 @@ describe('pair → ask → response.md', () => {
     expect(paired.code).toBe(0);
     expect(paired.stdout).toContain('"event":"paired"');
 
+    const plan = {
+      planType: 'pro',
+      planDisplayName: 'Pro',
+      subscriptionPlan: 'chatgptpro',
+      billingPeriod: 'monthly',
+      renewsAt: '2026-11-09T10:00:00Z',
+      observedAt: 1_792_000_000_000,
+    };
+    // A plan field the protocol does not know never reaches the output.
+    fake.account = { ...plan, email: 'jesse@example.com' };
     fake.start();
     const asked = await voyager(['ask', 'Reply with OK', '--json']);
     expect(asked.code, asked.stderr).toBe(0);
     const output = json(asked);
+    expect(output.account).toEqual({ ...plan, tier: 'pro' });
     expect(output.status).toBe('succeeded');
     expect(String(output.responsePath)).toContain(join(home, 'jobs'));
     expect(await readFile(String(output.responsePath), 'utf8')).toBe('OK');
@@ -169,6 +182,9 @@ describe('pair → ask → response.md', () => {
     expect(human.code).toBe(0);
     expect(human.stdout).toBe('OK\n');
     expect(human.stderr).toContain('response.md');
+    expect(human.stderr).toContain('plan: Pro ($200) (monthly, renews 9 Nov 2026)');
+    const status = await voyager(['status']);
+    expect(status.stdout).toContain('plan: Pro ($200) (monthly, renews 9 Nov 2026)');
   }, 30_000);
 
   it('exits 5 while a job runs, 4 when a wait times out, 6 once cancelled, 3 when a person is needed', async () => {

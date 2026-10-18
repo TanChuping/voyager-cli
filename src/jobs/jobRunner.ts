@@ -137,6 +137,8 @@ export class JobRunner {
       status,
       ...(error === undefined ? {} : { error }),
       ...(result === undefined ? {} : { result }),
+      // The plan changes; each result says which one the pages showed as it ended.
+      account: this.deps.extension.account,
     });
     this.deps.store.appendEvent(job.jobId, 'status', { status });
     this.deps.store.appendEvent(job.jobId, 'done', {

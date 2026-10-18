@@ -52,6 +52,12 @@ A file unchanged since this machine uploaded it is skipped (fingerprints in
 terminal, and without one it runs only with `--yes`. Put material many chats need in the
 project; use `--attach` for files one question needs.
 
+Every result also names the ChatGPT plan: `account` in JSON (`null` with
+`accountNote: "not-observed-yet"` until a page has loaded with the bridge on), and a
+`plan: Pro ($200) (monthly, renews 9 Nov 2026)` line on stderr and in `voyager status`. It is what
+the bridge's ChatGPT pages were told when they last loaded, so it can trail a recent change,
+and it is no measure of limits. Chrome and Edge only; on Firefox it stays `null`.
+
 State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
 `serve.json`, `serve.lock`, `cli-token` and `pairings.json` (both 0600), `jobs/<id>/`,
 `last-conversation.json` (0600, what `--continue` uses), `plugin-state/` (each plugin's own

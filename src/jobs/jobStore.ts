@@ -1,4 +1,5 @@
 import {
+  type AccountPlan,
   type BridgeError,
   type JobEvent,
   type JobEventType,
@@ -41,6 +42,8 @@ export interface JobRecord {
   error?: BridgeError;
   result?: Readonly<Record<string, unknown>>;
   checkpoints: Record<string, Readonly<Record<string, unknown>>>;
+  /** The ChatGPT plan the extension reported when the job ended; null when it had none. */
+  account?: AccountPlan | null;
 }
 
 /** What `GET /v1/jobs/:id` returns: the protocol summary plus result and checkpoints. */
@@ -48,6 +51,7 @@ export interface JobDetail extends JobSummary {
   readonly result?: Readonly<Record<string, unknown>>;
   readonly checkpoints: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly outputDir: string;
+  readonly account?: AccountPlan | null;
 }
 
 interface Waiter {
@@ -176,6 +180,7 @@ export class JobStore {
       ...(job.result === undefined ? {} : { result: job.result }),
       checkpoints: job.checkpoints,
       outputDir: this.outputDir(job.jobId),
+      ...(job.account === undefined ? {} : { account: job.account }),
     };
   }
 

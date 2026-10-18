@@ -4,6 +4,7 @@ import {
   isOpName,
   type JobSubmitResponse,
   type JobSummary,
+  type StatusResponse,
 } from '@voyager-crew/bridge-protocol';
 
 import { ensureServe, type ServeClient } from '../../client/serveClient';
@@ -11,6 +12,7 @@ import type { JobDetail } from '../../jobs/jobStore';
 import type { PluginRegistry } from '../../plugins/registry';
 import type { StatePaths } from '../../state/paths';
 import { BridgeFailure, failure } from '../../util/errors';
+import { accountJson } from '../accountPlan';
 import { parse, waitTimeout, WAIT_OPTIONS } from '../args';
 import { EXIT } from '../exitCodes';
 import { note, printJson, printLine } from '../output';
@@ -25,7 +27,9 @@ export async function submitAndWait(
   args: { json: boolean; noWait: boolean; timeoutMs: number },
   submit: () => Promise<JobSubmitResponse>,
 ): Promise<number> {
-  await warnIfExtensionAway(client);
+  const status = await warnIfExtensionAway(client);
+  // A job still running has no plan of its own yet: the last one the extension reported.
+  const account = accountJson(status.extension.account);
   let jobId: string;
   try {
     ({ jobId } = await submit());
@@ -42,27 +46,37 @@ export async function submitAndWait(
     throw error;
   }
   if (args.noWait) {
-    if (args.json) printJson({ jobId, status: 'running' });
+    if (args.json) printJson({ jobId, status: 'running', ...account });
     else printLine(jobId);
     return EXIT.ok;
   }
   if (!args.json) note(`job ${jobId}`);
-  return waitAndPresent(client, registry, jobId, args);
+  return waitAndPresent(client, registry, jobId, { ...args, account });
 }
 
 async function waitAndPresent(
   client: ServeClient,
   registry: PluginRegistry,
   jobId: string,
-  args: { json: boolean; timeoutMs: number },
+  args: { json: boolean; timeoutMs: number; account?: ReturnType<typeof accountJson> },
 ): Promise<number> {
   const outcome = await waitForJob(client, jobId, args.timeoutMs, (event) => {
     const line = args.json ? undefined : describeEvent(event);
     if (line !== undefined) note(line);
   });
   if (outcome.kind === 'timeout') {
-    if (args.json) printJson({ jobId, status: outcome.job.status, waitTimedOut: true });
-    else
+    if (args.json) {
+      printJson({
+        jobId,
+        status: outcome.job.status,
+        waitTimedOut: true,
+        // Still running: the plan the extension reports now.
+        ...(args.account ??
+          accountJson(
+            (await client.request<StatusResponse>('GET', BRIDGE_PATHS.status)).extension.account,
+          )),
+      });
+    } else
       note(
         `still ${outcome.job.status}; the job continues. Wait again with voyager job wait ${jobId}; do not resend the prompt.`,
       );

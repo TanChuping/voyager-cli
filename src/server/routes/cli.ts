@@ -41,6 +41,7 @@ export function cliRoutes(core: ServerCore): Route[] {
             version: current?.extensionVersion ?? null,
             browser: current?.browser ?? null,
             policy: extension.policy,
+            account: extension.account,
           },
           ...(activeJob === undefined ? {} : { activeJob }),
           serverVersion: CLI_VERSION,

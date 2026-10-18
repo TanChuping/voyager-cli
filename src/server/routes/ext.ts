@@ -83,6 +83,7 @@ async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   core.extension.lastPollAt = core.now();
   core.extension.ops = request.capabilities.ops;
   core.extension.policy = request.policy;
+  core.extension.account = request.account ?? null;
   core.slot.notePoll();
   // A newer poll replaces a held one (the service worker restarted, or retried).
   core.heldPoll?.();

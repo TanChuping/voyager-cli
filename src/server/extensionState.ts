@@ -1,4 +1,5 @@
 import type {
+  AccountPlan,
   OpCapability,
   OpName,
   PolicyReport,
@@ -30,6 +31,8 @@ export class ExtensionState {
   lastPollAt: number | null = null;
   ops: readonly OpCapability[] | null = null;
   policy: PolicyReport | null = null;
+  /** The ChatGPT plan the extension's pages last showed; null until it reports one. */
+  account: AccountPlan | null = null;
 
   opNames(): ReadonlySet<OpName> | null {
     return this.ops === null ? null : new Set(this.ops.map((op) => op.name));
@@ -39,5 +42,6 @@ export class ExtensionState {
     this.lastPollAt = null;
     this.ops = null;
     this.policy = null;
+    this.account = null;
   }
 }

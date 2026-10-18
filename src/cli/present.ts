@@ -1,5 +1,6 @@
 import type { JobDetail } from '../jobs/jobStore';
 import type { PluginRegistry } from '../plugins/registry';
+import { accountJson, describeAccount } from './accountPlan';
 import { exitForJob } from './exitCodes';
 import { note, printJson, printLine } from './output';
 
@@ -22,9 +23,11 @@ export function presentJob(job: JobDetail, registry: PluginRegistry, json: boole
       status: job.status,
       ...job.result,
       ...(job.error === undefined ? {} : { error: job.error }),
+      ...accountJson(job.account),
     });
     return code;
   }
+  note(describeAccount(job.account));
   if (job.status === 'succeeded') {
     const present = registry.command(job.plugin, job.command)?.present;
     if (present !== undefined) {

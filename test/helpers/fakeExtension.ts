@@ -92,6 +92,8 @@ export class FakeExtension {
   origin = EXT_ORIGIN;
   ops: OpCapability[] = OP_NAMES.map((name) => ({ name, v: 1 }));
   policy: PolicyReport = { revision: 1, state: 'allowed' };
+  /** The ChatGPT plan each poll reports; left out of the poll while undefined. */
+  account: unknown = undefined;
   readonly tasks: ValidatedBridgeTask[] = [];
   readonly aborts: { taskId: string; reason: string }[] = [];
   /** Server answers that failed the protocol validators; must stay empty. */
@@ -154,6 +156,7 @@ export class FakeExtension {
       capabilities: { ops: this.ops },
       inflight,
       policy: this.policy,
+      ...(this.account === undefined ? {} : { account: this.account }),
     });
     if (response.status === 204) return { status: 204 };
     const body = this.check(response, 'pollResponse');

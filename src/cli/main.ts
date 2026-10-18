@@ -39,6 +39,7 @@ usage:
   voyager plugin create <dir> | check <dir>   write a Voyager extension plugin
   voyager serve [--foreground | --stop]
 
+results name the ChatGPT plan the pages last showed (JSON: account; may trail a change)
 exit codes: 0 ok, 2 failed (data), 3 needs a person, 4 wait timed out (job continues),
             5 busy, 6 transient/detached/reply-stalled, 7 not paired or extension offline
 state: ~/.voyager (override with VOYAGER_HOME)`;
