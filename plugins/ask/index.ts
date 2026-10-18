@@ -138,9 +138,18 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
   if (!opened.ready.loggedIn) throw failure('login-required', 'ChatGPT is not logged in');
   if (opened.ready.mode !== 'chat') {
     const work = opened.ready.mode === 'work';
+    if (!work) {
+      // The extension reads the mode from composer labels measured on the zh-CN UI only.
+      const { lang, composerLabels } = opened.ready.evidence;
+      throw failure(
+        'mode-unknown',
+        `could not confirm ChatGPT is in chat mode (page language ${JSON.stringify(lang ?? '')}, composer labels ${JSON.stringify(composerLabels ?? [])}); the mode labels have only been measured on the Chinese (zh-CN) ChatGPT interface so far`,
+        { lang, composerLabels },
+      );
+    }
     throw failure(
-      work ? 'mode-unavailable' : 'mode-unknown',
-      existing !== undefined && work
+      'mode-unavailable',
+      existing !== undefined
         ? `conversation ${existing} is a ChatGPT Work conversation; voyager asks only in chat-mode conversations`
         : `ChatGPT is not in chat mode (${opened.ready.mode})`,
     );

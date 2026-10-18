@@ -168,6 +168,28 @@ describe('voyager ask in an existing conversation', () => {
     expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open']);
   });
 
+  it('sends nothing when the mode is unknown, and says only zh-CN labels were measured', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['conversation.open'] = () => ({
+      tabId: 7,
+      url: 'https://chatgpt.com/',
+      docNonce: 'nonce-1',
+      ready: {
+        url: 'https://chatgpt.com/',
+        conversationId: null,
+        loggedIn: true,
+        mode: 'unknown',
+        evidence: { lang: 'en-US', composerLabels: ['Ask anything'] },
+      },
+    });
+    const job = await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
+
+    expect(job.error?.code).toBe('mode-unknown');
+    expect(job.error?.message).toContain('zh-CN');
+    expect(job.error?.details).toMatchObject({ lang: 'en-US', composerLabels: ['Ask anything'] });
+    expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open']);
+  });
+
   it('remembers the conversation a plain ask started, for the next --continue', async () => {
     const { t } = await setup();
     await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
