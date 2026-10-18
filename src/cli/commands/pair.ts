@@ -1,4 +1,8 @@
-import { BRIDGE_PATHS, type PairingCodeResponse } from '@voyager-crew/bridge-protocol';
+import {
+  BRIDGE_PATHS,
+  DEFAULT_PORT,
+  type PairingCodeResponse,
+} from '@voyager-crew/bridge-protocol';
 
 import { ensureServe } from '../../client/serveClient';
 import type { CodeState } from '../../server/pairing';
@@ -36,10 +40,16 @@ export async function pairCommand(paths: StatePaths, argv: readonly string[]): P
     BRIDGE_PATHS.pairingCodes,
   );
   const shown = `${code.slice(0, 4)}-${code.slice(4)}`;
-  if (json) printLine(JSON.stringify({ event: 'code', code: shown, expiresAt }));
+  if (json) printLine(JSON.stringify({ event: 'code', code: shown, expiresAt, port: client.port }));
   else {
     printLine(`Pairing code: ${shown}`);
     note('In Voyager’s popup, open the ChatGPT bridge card, enter this code and click Pair.');
+    // The popup assumes the default port; without this line it pairs with whatever else listens there.
+    if (client.port !== DEFAULT_PORT) {
+      note(
+        `voyager serve is on port ${client.port}: enter it under Advanced before you click Pair.`,
+      );
+    }
     note('The code works once and expires in 5 minutes. Waiting…');
   }
 
