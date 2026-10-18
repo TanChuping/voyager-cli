@@ -91,7 +91,10 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
   const pairing = new PairingStore(options.paths, now);
   await pairing.load();
   const store = new JobStore(options.paths, now);
-  await store.init();
+  // A stale record that cannot be marked detached must not keep serve from starting.
+  await store.init().catch((error: unknown) => {
+    log.warn('could not mark interrupted jobs as detached', { error: String(error) });
+  });
   const slot = new TaskSlot({
     now,
     ...(options.ackDeadlineMs === undefined ? {} : { ackDeadlineMs: options.ackDeadlineMs }),
@@ -195,7 +198,10 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
         server.closeAllConnections();
       });
       await runner.settled();
-      await store.flush();
+      // Shutdown cannot redo the writes; serve must still release its lock and serve.json.
+      await store.flush().catch((error: unknown) => {
+        log.error('job records could not be saved', { error: String(error) });
+      });
     },
   };
 }

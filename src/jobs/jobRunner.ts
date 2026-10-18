@@ -175,7 +175,19 @@ export class JobRunner {
         job.checkpoints[name] = data;
         store.update(job, {});
         store.appendEvent(job.jobId, 'checkpoint', { name, data });
-        await store.flush();
+        try {
+          await store.flush(job.jobId);
+        } catch (error) {
+          // The job stops here: a restart would not know what this checkpoint records,
+          // and nothing after a `sent` checkpoint may send again.
+          throw failure(
+            'bad-request',
+            `the ${name} checkpoint could not be saved: ${String(error)}`,
+            {
+              checkpoint: name,
+            },
+          );
+        }
       },
       log: {
         info: (message, fields) => {

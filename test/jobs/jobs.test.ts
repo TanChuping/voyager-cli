@@ -4,7 +4,7 @@ import {
   type JobEventsResponse,
   type JobSubmitResponse,
 } from '@voyager-crew/bridge-protocol';
-import { mkdir, readFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -159,6 +159,30 @@ describe('job state machine', () => {
     expect(job.status).toBe('detached');
     expect(job.checkpoints.sent).toMatchObject({ conversationId: 'c-1' });
     expect(fake.tasks.filter((task) => task.op === 'composer.send')).toHaveLength(1);
+  });
+
+  it('fails without waiting for the reply when the sent checkpoint cannot be written, and sends once', async () => {
+    const { t, fake } = await setup();
+    let jobDir: string | undefined;
+    fake.handlers['composer.send'] = async (params, task) => {
+      jobDir = join(t.paths.jobs, task.jobId);
+      // The job's folder turns read-only (a full or locked disk) once the prompt went out.
+      await chmod(jobDir, 0o500);
+      return ASK_HANDLERS['composer.send']?.(params, task, {
+        progress: async () => {},
+        aborted: () => false,
+      });
+    };
+    fake.start();
+    const { jobId } = data<JobSubmitResponse>(await submitAsk(t));
+    try {
+      const job = await finished(t, jobId);
+      expect(job.status).toBe('failed');
+      expect(job.error).toMatchObject({ code: 'bad-request', details: { checkpoint: 'sent' } });
+      expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open', 'composer.send']);
+    } finally {
+      if (jobDir !== undefined) await chmod(jobDir, 0o700);
+    }
   });
 
   it('cancels during the reply wait: abort reaches the extension and the next job can run', async () => {

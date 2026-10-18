@@ -84,6 +84,7 @@ export function cliRoutes(core: ServerCore): Route[] {
       handle: async () => {
         const revoked = await pairing.revoke();
         extension.forget();
+        core.heldPoll?.();
         core.log.info('pairing revoked from the CLI');
         return { status: 200, data: { revoked } };
       },

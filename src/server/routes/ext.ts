@@ -86,6 +86,9 @@ async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   // A newer poll replaces a held one (the service worker restarted, or retried).
   core.heldPoll?.();
 
+  // Re-checked before a held poll takes a task: a pairing replaced meanwhile must not get it.
+  const token = bearer(ctx.req);
+  const stillPaired = (): boolean => core.pairing.checkToken(token, ctx.origin) === 'ok';
   const view = {
     inflight: new Set(request.inflight.map((entry) => entry.taskId)),
     ops: core.extension.opNames(),
@@ -108,6 +111,10 @@ async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
     const timer = setTimeout(end, core.pollHoldMs);
     const unsubscribe = core.slot.onChange(() => {
       if (finished || ctx.res.destroyed) return;
+      if (!stillPaired()) {
+        end();
+        return;
+      }
       const response = core.slot.poll(view);
       if (response !== undefined) finish(response);
     });
@@ -172,6 +179,7 @@ export function extRoutes(core: ServerCore): Route[] {
         requirePaired(core, ctx);
         await core.pairing.revoke();
         core.extension.forget();
+        core.heldPoll?.();
         core.log.info('extension unpaired itself');
         return { status: 200, data: { revoked: true } };
       },

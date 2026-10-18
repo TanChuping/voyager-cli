@@ -54,6 +54,24 @@ describe('extension long poll', () => {
     void newer.catch(() => undefined);
     await fake.stop();
   });
+
+  it('gives a task to the newly paired extension, never to the poll the replaced pairing held', async () => {
+    const { t, fake: replaced } = await paired(5_000);
+    const started = Date.now();
+    const older = replaced.poll();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const current = new FakeExtension(t.port);
+    await pairFake(current, t.cli);
+    await t.cli('POST', BRIDGE_PATHS.call, { op: 'composer.send', params: { text: 'secret' } });
+
+    const held = await older;
+    expect(held.message?.kind).not.toBe('task');
+    expect(Date.now() - started).toBeLessThan(2_000);
+    // Polling again with the replaced token is told it is no longer paired.
+    expect((await replaced.poll()).message).toEqual({ kind: 'unpaired' });
+    const { message } = await current.poll();
+    expect(message).toMatchObject({ kind: 'task', task: { op: 'composer.send' } });
+  });
 });
 
 describe('job events long poll', () => {

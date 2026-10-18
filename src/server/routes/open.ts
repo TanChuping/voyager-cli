@@ -64,6 +64,8 @@ export function openRoutes(core: ServerCore): Route[] {
           throw failure('unauthorized', 'pairing has to come from the extension');
         const token = await core.pairing.redeem({ ...checked.value, origin });
         core.extension.forget();
+        // The replaced pairing's held poll ends; its next poll is told `unpaired`.
+        core.heldPoll?.();
         core.log.info('extension paired', {
           browser: checked.value.browser,
           extensionVersion: checked.value.extensionVersion,

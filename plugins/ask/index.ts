@@ -166,6 +166,8 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
   const sent = await ctx.ops.call('composer.send', {
     text,
     ...(blobs.length > 0 ? { expectAttachments: blobs.map((blob) => blob.name) } : {}),
+    // The person can switch chats after the open: a check after the send cannot take it back.
+    ...(existing === undefined ? {} : { expect: { conversationId: existing } }),
   });
   const sentAt = Date.now();
   if (existing !== undefined && sent.conversationId !== existing) {

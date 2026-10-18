@@ -140,6 +140,19 @@ describe('voyager ask in an existing conversation', () => {
     expect(await readLastConversation(t.paths)).toMatchObject({ conversationId: ID });
   });
 
+  it('has the page refuse the send unless the tab still shows the conversation asked for', async () => {
+    const { t, fake } = await setup();
+    await finished(
+      t,
+      await submit(t, 'ask', { prompt: 'and now?', keepTab: false, conversationId: ID }),
+    );
+    await finished(t, await submit(t, 'ask', { prompt: 'hi', keepTab: false }));
+
+    const sends = fake.tasks.filter((task) => task.op === 'composer.send');
+    expect(sends[0]?.params).toEqual({ text: 'and now?', expect: { conversationId: ID } });
+    expect(sends[1]?.params).toEqual({ text: 'hi' });
+  });
+
   it('sends nothing into a work-mode conversation the extension refuses', async () => {
     const { t, fake } = await setup();
     fake.handlers['conversation.open'] = () => {

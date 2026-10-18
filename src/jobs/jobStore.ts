@@ -62,6 +62,8 @@ export class JobStore {
   private readonly events = new Map<string, JobEvent[]>();
   private readonly waiters = new Map<string, Set<Waiter>>();
   private readonly writes = new Map<string, Promise<void>>();
+  /** The first write that failed for each job since its last flush. */
+  private readonly failures = new Map<string, unknown>();
 
   constructor(
     private readonly paths: StatePaths,
@@ -185,9 +187,22 @@ export class JobStore {
     return join(this.jobDir(jobId), 'output');
   }
 
-  /** Wait for every pending write; tests and shutdown use it. */
-  async flush(): Promise<void> {
-    await Promise.all(this.writes.values());
+  /**
+   * Wait for the pending writes of `jobId` (of every job when omitted). Rejects
+   * when one of them failed since the last flush: the caller must not take the
+   * state as saved. Each failure is reported once.
+   */
+  async flush(jobId?: string): Promise<void> {
+    const ids = jobId === undefined ? [...this.writes.keys()] : [jobId];
+    await Promise.all(ids.map((id) => this.writes.get(id)));
+    const failed = ids.filter((id) => this.failures.has(id));
+    const first = failed.length > 0 ? this.failures.get(failed[0]) : undefined;
+    for (const id of failed) this.failures.delete(id);
+    if (failed.length > 0) {
+      throw new Error(`could not save job ${failed.join(', ')}: ${String(first)}`, {
+        cause: first,
+      });
+    }
   }
 
   /** Wake every held events request with no events (shutdown). */
@@ -212,6 +227,8 @@ export class JobStore {
       () => undefined,
       (error: unknown) => {
         process.stderr.write(`voyager: failed to write job ${jobId}: ${String(error)}\n`);
+        // Kept for flush(): a checkpoint that did not reach disk must not count as saved.
+        if (!this.failures.has(jobId)) this.failures.set(jobId, error);
       },
     );
     this.writes.set(jobId, next);
