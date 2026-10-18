@@ -29,6 +29,8 @@ const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<Exclude<OpName, 'turns.waitReply'>,
   'project.files': 30_000,
   'project.upload': 120_000,
   'project.remove': 30_000,
+  // The extension's own fetch gives up after 15 s.
+  'catalog.refresh': 30_000,
 };
 const WAIT_REPLY_MARGIN_MS = 30_000;
 
@@ -62,7 +64,7 @@ export function createOpsClient(hooks: OpsClientHooks): OpsClient {
       options: OpCallOptions = {},
     ): Promise<OpResultMap[K]> {
       if (hooks.signal.aborted) throw failure('cancelled', 'job was cancelled');
-      const refused = policyFailure(hooks.policy());
+      const refused = policyFailure(hooks.policy(), op);
       if (refused !== undefined) throw refused;
       const available = hooks.available();
       if (available !== null && !available.has(op)) {

@@ -92,6 +92,9 @@ npx skills add voyager-crew/voyager-cli
 - `ask`、`read` 和所有 `project` 命令都会自己打开一个 ChatGPT 标签页，结束时关掉，失败了也关；
   想留着就加 `--keep-tab`。如果 ChatGPT 要求登录或人机验证，Voyager CLI 会停下来、留着那个
   标签页并告诉你（退出码 3），不会绕过。
+- `voyager update` 把能更新的都更新一遍：命令行本身（用 npm 全局安装时）、`voyager serve`
+  （没有任务在跑时重启）和扩展的页面数据（立即重新获取，不等下一次定时检查）。扩展本身由浏览器的
+  扩展商店更新。
 - 全部命令见 `voyager --help`。状态保存在 `~/.voyager`（或 `$VOYAGER_HOME`），只有你的用户能读。
 - 已在 Chrome 中测试。Edge 和 Firefox 版的 Voyager 也带这个桥；Safari 版没有。
 

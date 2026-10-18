@@ -12,6 +12,7 @@ import { callCommand, jobCommand } from './commands/job';
 import { pairCommand } from './commands/pair';
 import { pluginCommand } from './commands/plugin';
 import { serveCommand } from './commands/serve';
+import { updateCommand } from './commands/update';
 import { exitForError } from './exitCodes';
 import { note, printJson, printLine } from './output';
 
@@ -40,6 +41,8 @@ usage:
         while it exits 4; never resend the prompt
   voyager plugin create <dir> | check <dir>   write a Voyager extension plugin
   voyager serve [--foreground | --stop]
+  voyager update [--json]              update the CLI (global npm install), restart serve onto it,
+                                       refresh the extension's page data, report its version
 
 each job opens its own ChatGPT tab and closes it when it ends, also after a failure,
 unless --keep-tab; one you need to look at (sign-in, an unconfirmed send) stays open
@@ -77,6 +80,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return jobCommand(paths, registry, rest);
     case 'plugin':
       return extensionPluginCommand(rest);
+    case 'update':
+      return updateCommand(paths, rest);
     default: {
       const found = registry.findCommand(command);
       if (found === undefined) {

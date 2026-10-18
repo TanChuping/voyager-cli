@@ -103,6 +103,9 @@ One job runs at a time. Every result also names your ChatGPT plan (`Pro Lite ($1
   end, also after a failure; pass `--keep-tab` to leave it open. If ChatGPT asks you to sign in
   or solve a challenge, Voyager CLI stops, leaves that tab open and says so (exit 3); it never
   works around it.
+- `voyager update` updates everything it can: the CLI (when npm installed it globally),
+  `voyager serve` (restarted unless a job is running) and the extension's page data, fetched now
+  instead of at its next check. Your browser's store updates the extension itself.
 - Commands: `voyager --help`. State lives in `~/.voyager` (or `$VOYAGER_HOME`), private to
   your user.
 - Tested in Chrome. Edge and Firefox builds of Voyager include the bridge too; Safari does not.

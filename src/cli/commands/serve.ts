@@ -101,7 +101,7 @@ export async function runServe(paths: StatePaths, daemon: boolean): Promise<numb
   return 0;
 }
 
-async function stopServe(paths: StatePaths): Promise<number> {
+export async function stopServe(paths: StatePaths): Promise<number> {
   const info = await readServeInfo(paths);
   const pid = info?.pid ?? (await readLockPid(paths));
   if (pid === undefined || !isAlive(pid)) {

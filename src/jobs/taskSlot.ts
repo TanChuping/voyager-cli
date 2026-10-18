@@ -205,7 +205,7 @@ export class TaskSlot {
       return undefined;
     }
     if (entry.state === 'queued') {
-      const refused = policyFailure(view.policy);
+      const refused = policyFailure(view.policy, entry.task.op);
       if (refused !== undefined) {
         this.settle(entry, refused);
         this.release(entry);

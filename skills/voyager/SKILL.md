@@ -101,3 +101,4 @@ It prints a code like `1234-5678`. The person types it into the Voyager popup (C
 - `voyager job list | show <id> | cancel <id>`: cancelling stops Voyager from watching. A prompt already sent stays in ChatGPT.
 - `voyager commands --json`: plugin commands, and the ops the extension offers right now.
 - `voyager call <op> --params '<json>'`: one raw op, for debugging only.
+- `voyager update [--json]`: only when the person asks. It may run `npm i -g @voyager-crew/cli@latest` and restart `voyager serve`; it refreshes the extension's page data and reports the extension's version. Exit 0 also when it only printed a command for the person to run.

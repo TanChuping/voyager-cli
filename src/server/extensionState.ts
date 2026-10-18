@@ -1,9 +1,10 @@
-import type {
-  AccountPlan,
-  OpCapability,
-  OpName,
-  PolicyReport,
-  PolicyState,
+import {
+  isPolicyExemptOp,
+  type AccountPlan,
+  type OpCapability,
+  type OpName,
+  type PolicyReport,
+  type PolicyState,
 } from '@voyager-crew/bridge-protocol';
 
 import { type BridgeFailure, failure } from '../util/errors';
@@ -13,7 +14,12 @@ import { type BridgeFailure, failure } from '../util/errors';
  * before the op list: the extension then declares no ops, and "unsupported"
  * would hide that the person has to act (412, not 400).
  */
-export function policyFailure(state: PolicyState | undefined): BridgeFailure | undefined {
+export function policyFailure(
+  state: PolicyState | undefined,
+  op?: OpName,
+): BridgeFailure | undefined {
+  // `catalog.refresh` is how a stale policy gets fixed, so the policy cannot refuse it.
+  if (op !== undefined && isPolicyExemptOp(op)) return undefined;
   if (state === 'denied') {
     return failure('policy-denied', 'the extension policy does not allow the bridge');
   }

@@ -6,12 +6,14 @@
  */
 import {
   categoryOf,
+  isOpName,
   type BridgeError,
   type JobStatus,
   type OpName,
 } from '@voyager-crew/bridge-protocol';
 
 import type { CommandDef, JobContext, PluginState } from '../plugins/api';
+import { CALL_PLUGIN } from '../plugins/callPlugin';
 import type { PluginRegistry } from '../plugins/registry';
 import { type ExtensionState, policyFailure } from '../server/extensionState';
 import type { LastConversation } from '../state/lastConversation';
@@ -60,7 +62,8 @@ export class JobRunner {
     if (!this.deps.isPaired()) {
       throw failure('not-paired', 'no extension is paired; run `voyager pair`');
     }
-    const refused = policyFailure(this.deps.extension.policy?.state);
+    const op = plugin === CALL_PLUGIN && isOpName(command) ? command : undefined;
+    const refused = policyFailure(this.deps.extension.policy?.state, op);
     if (refused !== undefined) throw refused;
     const available = this.deps.extension.opNames();
     const required = this.deps.registry.plugin(plugin)?.requiresOps ?? [];
