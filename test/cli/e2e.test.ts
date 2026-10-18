@@ -260,4 +260,24 @@ describe('pair → ask → response.md', () => {
     expect(human.code).toBe(0);
     expect(human.stdout).toBe('OK\n');
   }, 60_000);
+
+  it('tells an agent not to resend when the send ended unconfirmed, in JSON and in text', async () => {
+    const fake = fakes[0];
+    fake.handlers = { ...ASK_HANDLERS };
+    fake.handlers['composer.send'] = () => {
+      throw new OpError('document-lost');
+    };
+    const asked = await voyager(['ask', 'Reply with OK', '--json']);
+    expect(asked.code, asked.stderr).toBe(2);
+    const output = json(asked) as { jobId: string };
+    expect(output).toMatchObject({
+      status: 'failed',
+      error: { code: 'send-unverified', details: { sent: 'unknown', cause: 'document-lost' } },
+    });
+
+    const human = await voyager(['job', 'wait', output.jobId]);
+    expect(human.code).toBe(2);
+    expect(human.stdout).toContain('do not resend');
+    expect(human.stderr).toContain('send-unverified');
+  }, 30_000);
 });

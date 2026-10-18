@@ -27,7 +27,8 @@ export const EXT_ORIGIN = `chrome-extension://${'abcdefghijklmnop'.repeat(2)}`;
 export class OpError extends Error {
   constructor(
     readonly code: ErrorCode,
-    message = code,
+    message: string = code,
+    readonly details?: Readonly<Record<string, unknown>>,
   ) {
     super(message);
   }
@@ -238,7 +239,8 @@ export class FakeExtension {
       envelope = { ok: true, data };
     } catch (error) {
       const code = error instanceof OpError ? error.code : 'bad-request';
-      envelope = { ok: false, error: bridgeError(code, String(error)) };
+      const details = error instanceof OpError ? error.details : undefined;
+      envelope = { ok: false, error: bridgeError(code, String(error), details) };
     }
     // An aborted task produces nothing more, like terminate('cancelled').
     if (running.aborted || this.stopped) return;

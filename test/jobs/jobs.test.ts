@@ -271,7 +271,7 @@ describe('job state machine', () => {
     expect((await submitAsk(t, 'after')).status).toBe(202);
   });
 
-  it('frees the slot when the extension disappears mid-task', async () => {
+  it('reports a lost extension after the send click as possibly sent, and frees the slot', async () => {
     const { t, fake } = await setup({ extensionOfflineMs: 400, pollHoldMs: 100 });
     fake.handlers['composer.send'] = () => new Promise(() => {});
     fake.start();
@@ -279,9 +279,8 @@ describe('job state machine', () => {
     await until(() => fake.tasks.some((task) => task.op === 'composer.send'));
     await fake.stop();
     const job = await finished(t, jobId);
-    expect(job.status).toBe('needs-user');
-    expect(job.error?.code).toBe('extension-offline');
-    expect(exitForJob(job)).toBe(7);
+    expectPossiblySent(job, fake);
+    expect(job.error?.details).toMatchObject({ cause: 'extension-offline' });
     expect((await submitAsk(t)).status).toBe(202);
   });
 
@@ -308,5 +307,111 @@ describe('job state machine', () => {
     expect(status.activeJob).toBeUndefined();
     const restartedEvents = await events(restarted, 'jold1');
     expect(restartedEvents.at(-1)).toMatchObject({ type: 'done', data: { status: 'detached' } });
+  });
+});
+
+/** The job a send that went out unconfirmed must end as: never an invitation to resend. */
+function expectPossiblySent(job: JobDetail, ext: FakeExtension): void {
+  expect(job.status).toBe('failed');
+  expect(job.error).toMatchObject({ code: 'send-unverified', details: { sent: 'unknown' } });
+  expect(exitForJob(job)).toBe(2);
+  expect(job.checkpoints.sending).toBeDefined();
+  expect(job.checkpoints.sent).toBeUndefined();
+  expect(ext.tasks.filter((task) => task.op === 'composer.send')).toHaveLength(1);
+  expect(ext.tasks.map((task) => task.op)).not.toContain('turns.waitReply');
+}
+
+describe('a send that may have gone out', () => {
+  it('a late send confirmation never invites a resend: the CLI deadline runs out first', async () => {
+    // The CLI gives up on composer.send 1 s after dispatch instead of 35 s.
+    const { t, fake } = await setup({ deadlineGraceMs: -29_000, pollHoldMs: 100 });
+    fake.handlers['composer.send'] = () => new Promise(() => {});
+    fake.start();
+    const { jobId } = data<JobSubmitResponse>(await submitAsk(t));
+    const job = await finished(t, jobId);
+    expectPossiblySent(job, fake);
+    expect(job.error?.details).toMatchObject({ cause: 'timeout' });
+  });
+
+  it.each(['timeout', 'document-lost', 'tab-closed', 'extension-reloaded', 'cancelled'] as const)(
+    'a send that ends in %s after the click is reported as possibly sent',
+    async (code) => {
+      const { t, fake } = await setup();
+      fake.handlers['composer.send'] = () => {
+        throw new OpError(code);
+      };
+      fake.start();
+      const job = await finished(t, data<JobSubmitResponse>(await submitAsk(t)).jobId);
+      expectPossiblySent(job, fake);
+      expect(job.error?.details).toMatchObject({ cause: code });
+    },
+  );
+
+  it('a page result that does not match the protocol is reported as possibly sent', async () => {
+    const { t, fake } = await setup();
+    // The dispatcher's `unverified` for a malformed page result carries no pre-click stage.
+    fake.handlers['composer.send'] = () => {
+      throw new OpError('unverified', 'The page returned a malformed result.');
+    };
+    fake.start();
+    const job = await finished(t, data<JobSubmitResponse>(await submitAsk(t)).jobId);
+    expectPossiblySent(job, fake);
+  });
+
+  it('a cancel while the send is unconfirmed is reported as possibly sent, not cancelled', async () => {
+    const { t, fake } = await setup({ pollHoldMs: 100 });
+    fake.handlers['composer.send'] = () => new Promise(() => {});
+    fake.start();
+    const { jobId } = data<JobSubmitResponse>(await submitAsk(t));
+    await until(() => fake.tasks.some((task) => task.op === 'composer.send'));
+    await t.cli('POST', bridgePath.jobCancel(jobId));
+    const job = await finished(t, jobId);
+    expectPossiblySent(job, fake);
+    expect((await submitAsk(t, 'after')).status).toBe(202);
+  });
+
+  it.each([
+    ['composer-busy', undefined],
+    ['selector-missing', undefined],
+    ['unverified', { stage: 'fill' }],
+    ['unverified', { reason: 'conversation-mismatch' }],
+  ] as const)(
+    'a send refused before the click (%s %j) keeps its own error',
+    async (code, details) => {
+      const { t, fake } = await setup();
+      fake.handlers['composer.send'] = () => {
+        throw new OpError(code, code, details);
+      };
+      fake.start();
+      const job = await finished(t, data<JobSubmitResponse>(await submitAsk(t)).jobId);
+      expect(job.error?.code).toBe(code);
+      expect(fake.tasks.filter((task) => task.op === 'composer.send')).toHaveLength(1);
+    },
+  );
+
+  it('a serve restart between the send and its confirmation is reported as possibly sent, not detached', async () => {
+    const first = (await setup()).t;
+    const jobDir = join(first.paths.jobs, 'jsend1');
+    await mkdir(jobDir, { recursive: true });
+    await writeJsonAtomic(join(jobDir, 'job.json'), {
+      jobId: 'jsend1',
+      plugin: 'ask',
+      command: 'ask',
+      input: { prompt: 'x' },
+      status: 'running',
+      createdAt: 1,
+      updatedAt: 1,
+      checkpoints: { opened: { tabId: 7 }, sending: { at: 1 } },
+    });
+    const restarted = await first.restart();
+    t = restarted;
+    const job = data<JobDetail>(await restarted.cli('GET', bridgePath.job('jsend1')));
+    expect(job.status).toBe('failed');
+    expect(job.error).toMatchObject({ code: 'send-unverified' });
+    expect(exitForJob(job)).toBe(2);
+    expect((await events(restarted, 'jsend1')).at(-1)).toMatchObject({
+      type: 'done',
+      data: { status: 'failed', error: { code: 'send-unverified' } },
+    });
   });
 });

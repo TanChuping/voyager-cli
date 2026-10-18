@@ -123,9 +123,11 @@ export class JobRunner {
       status = 'succeeded';
       result = output.data;
     } catch (thrown) {
-      error = controller.signal.aborted
-        ? toBridgeError(failure('cancelled', 'job was cancelled'))
-        : toBridgeError(thrown);
+      error = toBridgeError(thrown);
+      // A cancel while the send was unconfirmed leaves the prompt possibly sent: say so, not "cancelled".
+      if (controller.signal.aborted && error.code !== 'send-unverified') {
+        error = toBridgeError(failure('cancelled', 'job was cancelled'));
+      }
       status = statusForError(error, job.checkpoints);
     }
     // The page may still hold an abandoned task; the job ends only when it lets go.

@@ -23,6 +23,7 @@ import {
   type JobResult,
   type ParsedArgs,
 } from '../../src/plugins/api';
+import { sendOnce } from '../../src/plugins/sendGuard';
 import { type StagedAttachment, stageAttachments } from '../../src/util/attach/stage';
 import { parseConversationRef } from '../../src/util/conversationRef';
 import { failure } from '../../src/util/errors';
@@ -233,7 +234,8 @@ async function askInTab(
 
   const preamble = attachmentPreamble(attachments);
   const text = preamble === '' ? input.prompt : `${input.prompt}\n\n${preamble}`;
-  const sent = await ctx.ops.call('composer.send', {
+  // Anything but a confirmed send or a proven pre-click failure ends as send-unverified.
+  const sent = await sendOnce(ctx, {
     text,
     ...(blobs.length > 0 ? { expectAttachments: blobs.map((blob) => blob.name) } : {}),
     // The person can switch chats after the open: a check after the send cannot take it back.

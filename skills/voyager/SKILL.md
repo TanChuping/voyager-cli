@@ -75,7 +75,7 @@ voyager job wait <jobId> --timeout 10m --json
 | Code | Meaning                                                                             | Next step                                               |
 | ---- | ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | 0    | succeeded                                                                           | read `responsePath`                                     |
-| 2    | failed (bad input, or the page changed)                                             | report `error.message` to the person                    |
+| 2    | failed (bad input, or the page changed); `send-unverified`: the prompt may be sent  | report `error.message`; never resend `send-unverified`  |
 | 3    | needs a person (`login-required`, `challenge`, `rate-limited`, `policy-denied`, …)  | stop and tell the person what `error.code` asks of them |
 | 4    | wait timed out; job continues                                                       | `voyager job wait <jobId> --json` again; do not resend  |
 | 5    | busy: another job runs (`error.details.activeJobId`)                                | wait for that job, or ask the person                    |

@@ -14,6 +14,7 @@ import {
 import { appendFile, mkdir, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { sendInterrupted, sendUnverified } from '../plugins/sendGuard';
 import type { StatePaths } from '../state/paths';
 import { isErrno, readJsonFile, writeJsonAtomic } from '../util/files';
 import { newId } from '../util/ids';
@@ -76,13 +77,25 @@ export class JobStore {
 
   /**
    * A job that was running when serve stopped is `detached`: serve never resumes
-   * it on its own (`voyager job harvest` is the explicit way back).
+   * it on its own (`voyager job harvest` is the explicit way back). One that
+   * stopped with its send dispatched but unconfirmed fails as `send-unverified`.
    */
   async init(): Promise<void> {
     for (const jobId of await this.listIds()) {
       const job = await this.load(jobId);
       if (job === undefined || isTerminal(job.status)) continue;
       await this.loadEvents(jobId);
+      if (sendInterrupted(job.checkpoints)) {
+        // Stopped between dispatching composer.send and its confirmation: the prompt may be in ChatGPT.
+        const error = sendUnverified(
+          'serve stopped before the send was confirmed; the prompt may have been sent',
+          { reason: 'serve restarted' },
+        );
+        this.update(job, { status: 'failed', error });
+        this.appendEvent(jobId, 'status', { status: 'failed', reason: 'serve restarted' });
+        this.appendEvent(jobId, 'done', { status: 'failed', error });
+        continue;
+      }
       const status: JobStatus = job.status === 'cancelling' ? 'cancelled' : 'detached';
       this.update(job, { status });
       this.appendEvent(jobId, 'status', { status, reason: 'serve restarted' });
