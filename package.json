@@ -1,7 +1,22 @@
 {
   "name": "@voyager-crew/cli",
   "version": "0.1.0",
-  "description": "voyager: the local half of the Voyager Local Bridge (serve, pair, ask)",
+  "description": "Ask ChatGPT from your terminal or your coding agent, through the Voyager browser extension",
+  "keywords": [
+    "chatgpt",
+    "cli",
+    "agent",
+    "voyager",
+    "browser-extension"
+  ],
+  "homepage": "https://github.com/voyager-crew/voyager-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voyager-crew/voyager-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/voyager-crew/voyager-cli/issues"
+  },
   "license": "MIT",
   "author": "Jesse Zhang",
   "type": "module",
@@ -25,7 +40,8 @@
     "lint:check": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "verify": "bun run format:check && bun run lint:check && bun run typecheck && bun run test"
+    "verify": "bun run format:check && bun run lint:check && bun run typecheck && bun run test",
+    "prepublishOnly": "bun run verify && bun run build"
   },
   "devDependencies": {
     "@types/node": "^24.9.0",
@@ -35,5 +51,8 @@
     "oxlint": "^1.80.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
