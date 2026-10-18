@@ -70,6 +70,8 @@ async function setup(
     latest?: string | Error;
     env?: NodeJS.ProcessEnv;
     script?: 'global' | 'checkout';
+    /** The version of the CLI that runs `voyager update`; serve runs this package's. */
+    current?: string;
   } = {},
 ) {
   t = await startTestServer();
@@ -98,7 +100,7 @@ async function setup(
   );
   const restartServe = vi.fn(async () => {});
   const deps: UpdateDeps = {
-    currentVersion: '0.1.0',
+    currentVersion: options.current ?? '0.1.0',
     fetch: vi.fn(async () => {
       if (latest instanceof Error) throw latest;
       return new Response(JSON.stringify({ name: '@voyager-crew/cli', version: latest }));
@@ -120,7 +122,8 @@ const installs = (run: ReturnType<typeof vi.fn<UpdateDeps['run']>>) =>
 
 describe('voyager update', () => {
   it('updates a global install when npm has a newer version', async () => {
-    const s = await setup({ latest: '0.2.0' });
+    // Newer than this package's own version, which the test serve runs.
+    const s = await setup({ latest: '99.0.0' });
     const code = await updateCommand(s.server.paths, [], s.deps);
 
     expect(installs(s.run)).toEqual([
@@ -128,7 +131,7 @@ describe('voyager update', () => {
     ]);
     // serve still runs the old version and is idle: it moves to the new one.
     expect(s.restartServe).toHaveBeenCalledTimes(1);
-    expect(s.output.stdout()).toContain('CLI 0.1.0 → 0.2.0 · ');
+    expect(s.output.stdout()).toContain('CLI 0.1.0 → 99.0.0 · ');
     expect(s.output.stdout()).toContain('page data refreshed (revision 42) · extension 2.2.0 ✓');
     expect(code).toBe(0);
   });
@@ -149,6 +152,16 @@ describe('voyager update', () => {
 
     expect(installs(s.run)).toEqual([]);
     expect(s.output.stderr()).toContain(INSTALL_COMMAND);
+    expect(code).toBe(0);
+  });
+
+  it('moves a serve older than the CLI onto it when the CLI runs from a checkout', async () => {
+    const s = await setup({ script: 'checkout', current: '99.0.0', latest: '0.1.0' });
+    const code = await updateCommand(s.server.paths, [], s.deps);
+
+    // Without the restart, the old serve refuses the newer CLI's ops (catalog.refresh).
+    expect(s.restartServe).toHaveBeenCalledTimes(1);
+    expect(s.output.stdout()).toContain(' → 99.0.0');
     expect(code).toBe(0);
   });
 
@@ -189,7 +202,7 @@ describe('voyager update', () => {
   });
 
   it('does not restart serve while a job runs', async () => {
-    const s = await setup({ latest: '0.2.0' });
+    const s = await setup({ latest: '99.0.0' });
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -211,7 +224,7 @@ describe('voyager update', () => {
 
     expect(s.restartServe).not.toHaveBeenCalled();
     expect(s.output.stdout()).toContain(
-      'CLI 0.1.0 → 0.2.0 · restart voyager serve after the current job',
+      'CLI 0.1.0 → 99.0.0 · restart voyager serve after the current job',
     );
     // One job at a time: the refresh waits for a later run too, and says so.
     expect(s.output.stderr()).toContain(`job ${jobId} is running`);

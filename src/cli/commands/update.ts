@@ -190,6 +190,7 @@ async function updateCli(deps: UpdateDeps): Promise<CliStep> {
       line: newer ? `CLI ${current} (${latest} via npx ${CLI_PACKAGE}@latest)` : `CLI ${current} ✓`,
       code: EXIT.ok,
       json: { ...json, updated: false },
+      serveTarget: current,
     };
   }
   if (install.kind === 'local') {
@@ -198,6 +199,7 @@ async function updateCli(deps: UpdateDeps): Promise<CliStep> {
       line: newer ? `CLI ${current} (${latest} out: ${INSTALL_COMMAND})` : `CLI ${current} ✓`,
       code: EXIT.ok,
       json: { ...json, updated: false },
+      serveTarget: current,
     };
   }
   if (!newer) {
@@ -242,7 +244,8 @@ async function restartServe(
   // Not running: the next command starts the installed version.
   if (client === undefined) return undefined;
   const status = await client.request<StatusResponse>('GET', BRIDGE_PATHS.status);
-  if (status.serverVersion === target) return undefined;
+  // A serve older than this CLI moves to it, however the CLI was installed; a newer one stays.
+  if (compareVersions(target, status.serverVersion) <= 0) return undefined;
   if (status.activeJob !== undefined) {
     note(
       `voyager serve still runs ${status.serverVersion}: job ${status.activeJob.jobId} is running`,
