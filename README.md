@@ -21,6 +21,19 @@ voyager status
 voyager job list | show <id> | wait <id> | cancel <id>
 ```
 
+A Pro reply can take hours. `ask` waits for it as long as ChatGPT is still generating; the job
+fails `reply-stalled` (exit 6) only after 20 minutes without any activity, and gives up at 12
+hours. `--timeout` bounds only how long a command waits in the foreground. For long prompts,
+submit once and wait in rounds:
+
+```sh
+voyager ask --json --no-wait "…"                 # → {"jobId": "…", "status": "running"}
+voyager job wait <jobId> --timeout 10m --json    # exit 4: still running, wait again
+```
+
+`job wait` prints the same result and exit code as `ask` once the job ends. Never resend
+the prompt after exit 4: the job is still running.
+
 State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
 `serve.json`, `serve.lock`, `cli-token` and `pairings.json` (both 0600), `jobs/<id>/`,
 `last-conversation.json` (0600, what `--continue` uses) and `logs/serve.log`.

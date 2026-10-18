@@ -29,11 +29,13 @@ usage:
   voyager commands [--json]            plugin commands and extension ops
   voyager call <op> [--params JSON]    run one extension op (debugging)
   voyager job list | show <id> | wait <id> [--timeout 30m] | cancel <id>
+        long replies (Pro can take hours): ask --no-wait, then repeat job wait <id> --timeout 10m
+        while it exits 4; never resend the prompt
   voyager plugin create <dir> | check <dir>   write a Voyager extension plugin
   voyager serve [--foreground | --stop]
 
 exit codes: 0 ok, 2 failed (data), 3 needs a person, 4 wait timed out (job continues),
-            5 busy, 6 transient/detached, 7 not paired or extension offline
+            5 busy, 6 transient/detached/reply-stalled, 7 not paired or extension offline
 state: ~/.voyager (override with VOYAGER_HOME)`;
 
 async function main(argv: readonly string[]): Promise<number> {

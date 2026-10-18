@@ -208,4 +208,40 @@ describe('pair → ask → response.md', () => {
       error: { code: 'login-required' },
     });
   }, 60_000);
+
+  it('lets an agent wait for a long job in rounds and get what ask itself prints', async () => {
+    const fake = fakes[0];
+    fake.handlers = { ...ASK_HANDLERS };
+    const asked = json(await voyager(['ask', 'Reply with OK', '--json']));
+
+    let release: () => void = () => {};
+    const replied = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fake.handlers['turns.waitReply'] = async (params, task, io) => {
+      await replied;
+      return ASK_HANDLERS['turns.waitReply']?.(params, task, io);
+    };
+    const first = await voyager(['ask', 'Reply with OK', '--no-wait', '--json']);
+    expect(first.code).toBe(0);
+    const { jobId } = json(first) as { jobId: string };
+    await until(() =>
+      fake.tasks.some((task) => task.op === 'turns.waitReply' && task.jobId === jobId),
+    );
+
+    const round = await voyager(['job', 'wait', jobId, '--timeout', '1s']);
+    expect(round.code).toBe(4);
+    expect(round.stderr).toContain('the job continues');
+
+    release();
+    const done = await voyager(['job', 'wait', jobId, '--timeout', '20s', '--json']);
+    expect(done.code, done.stderr).toBe(0);
+    const output = json(done);
+    expect(output).toMatchObject({ jobId, status: 'succeeded', response: { markdown: 'OK' } });
+    expect(Object.keys(output).sort()).toEqual(Object.keys(asked).sort());
+
+    const human = await voyager(['job', 'wait', jobId]);
+    expect(human.code).toBe(0);
+    expect(human.stdout).toBe('OK\n');
+  }, 60_000);
 });

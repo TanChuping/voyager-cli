@@ -64,7 +64,7 @@ async function waitAndPresent(
     if (args.json) printJson({ jobId, status: outcome.job.status, waitTimedOut: true });
     else
       note(
-        `still ${outcome.job.status}; the job continues. Resume with: voyager job wait ${jobId}`,
+        `still ${outcome.job.status}; the job continues. Wait again with voyager job wait ${jobId}; do not resend the prompt.`,
       );
     return EXIT.waitTimeout;
   }

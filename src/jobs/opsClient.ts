@@ -1,6 +1,6 @@
 import {
   validateOpParams,
-  WAIT_REPLY_DEFAULT_TIMEOUT_MS,
+  WAIT_REPLY_MAX_TIMEOUT_MS,
   type OpName,
   type OpParamsMap,
   type OpResultMap,
@@ -13,7 +13,7 @@ import { failure } from '../util/errors';
 import type { TaskSlot } from './taskSlot';
 
 /** Server-side wait for an op's result when the caller gives none. */
-const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<OpName, number>> = {
+const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<Exclude<OpName, 'turns.waitReply'>, number>> = {
   'conversation.open': 60_000,
   'conversation.close': 15_000,
   'conversation.ready': 30_000,
@@ -21,7 +21,6 @@ const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<OpName, number>> = {
   'model.select': 30_000,
   'composer.attach': 120_000,
   'composer.send': 30_000,
-  'turns.waitReply': WAIT_REPLY_DEFAULT_TIMEOUT_MS,
   'turns.read': 30_000,
   'files.download': 120_000,
 };
@@ -29,8 +28,9 @@ const WAIT_REPLY_MARGIN_MS = 30_000;
 
 export function defaultOpTimeout(op: OpName, params: unknown): number {
   if (op === 'turns.waitReply') {
+    // No fixed wait: the page fails a reply that stops moving (`reply-stalled`); this is only its cap.
     const timeoutMs = (params as OpParamsMap['turns.waitReply']).timeoutMs;
-    return (timeoutMs ?? WAIT_REPLY_DEFAULT_TIMEOUT_MS) + WAIT_REPLY_MARGIN_MS;
+    return (timeoutMs ?? WAIT_REPLY_MAX_TIMEOUT_MS) + WAIT_REPLY_MARGIN_MS;
   }
   return DEFAULT_OP_TIMEOUT_MS[op];
 }

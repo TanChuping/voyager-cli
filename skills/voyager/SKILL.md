@@ -34,19 +34,31 @@ voyager ask --json --continue "And the edge cases?" # the conversation of the la
 
 Links may be `/c/<id>`, `/g/<gpt-or-project>/c/<id>`, or the bare id. `read` sends nothing; if the last reply is still being written it fails with `unverified`, so wait and read again later. `--continue` without an earlier success is `bad-request`; `--chat` and `--continue` exclude each other. A ChatGPT Work conversation is `mode-unavailable`: voyager only asks in chat-mode conversations, so tell the person.
 
-Long replies: `--timeout` only bounds how long this command waits (default `30m`). On exit 4, the job is still running. Continue with `voyager job wait <jobId> --json`.
+## Long replies
+
+A GPT-6 Pro reply can take hours. The job waits as long as ChatGPT is still working on it (stop button showing, or the reply still changing); it fails `reply-stalled` only after 20 minutes with no activity at all, and gives up at 12 hours. `--timeout` only bounds how long one command waits (default `30m`); the job keeps running in `voyager serve` either way.
+
+For a prompt that may run long, submit once and then wait in rounds:
+
+```sh
+voyager ask --json --no-wait "…"            # prints {"jobId": "...", "status": "running"}
+voyager job wait <jobId> --timeout 10m --json
+```
+
+- Exit 4 (`"waitTimedOut": true`): the job is still running. Run the same `voyager job wait` again. Never send the prompt again.
+- Any other exit: `job wait` prints exactly what `voyager ask --json` would have printed, with the same exit codes.
 
 ## Exit codes
 
-| Code | Meaning                                                                            | Next step                                               |
-| ---- | ---------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 0    | succeeded                                                                          | read `responsePath`                                     |
-| 2    | failed (bad input, or the page changed)                                            | report `error.message` to the person                    |
-| 3    | needs a person (`login-required`, `challenge`, `rate-limited`, `policy-denied`, …) | stop and tell the person what `error.code` asks of them |
-| 4    | wait timed out; job continues                                                      | `voyager job wait <jobId> --json`                       |
-| 5    | busy: another job runs (`error.details.activeJobId`)                               | wait for that job, or ask the person                    |
-| 6    | lost page or server (`detached`), or cancelled                                     | tell the person; the prompt may already be in ChatGPT   |
-| 7    | not paired, or the extension is offline                                            | ask the person to pair or open the browser              |
+| Code | Meaning                                                                             | Next step                                               |
+| ---- | ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 0    | succeeded                                                                           | read `responsePath`                                     |
+| 2    | failed (bad input, or the page changed)                                             | report `error.message` to the person                    |
+| 3    | needs a person (`login-required`, `challenge`, `rate-limited`, `policy-denied`, …)  | stop and tell the person what `error.code` asks of them |
+| 4    | wait timed out; job continues                                                       | `voyager job wait <jobId> --json` again; do not resend  |
+| 5    | busy: another job runs (`error.details.activeJobId`)                                | wait for that job, or ask the person                    |
+| 6    | lost page or server (`detached`), the reply stalled (`reply-stalled`), or cancelled | tell the person; the prompt may already be in ChatGPT   |
+| 7    | not paired, or the extension is offline                                             | ask the person to pair or open the browser              |
 
 Exactly one job runs at a time, and jobs are never queued. Each prompt is submitted **once**. After any exit other than 0, report to the person and let them decide; a second `voyager ask` with the same prompt would send it again. `send-unverified` means the page may have sent it, so the person checks ChatGPT first.
 

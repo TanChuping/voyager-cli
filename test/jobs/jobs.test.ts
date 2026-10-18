@@ -3,6 +3,7 @@ import {
   bridgePath,
   type JobEventsResponse,
   type JobSubmitResponse,
+  WAIT_REPLY_MAX_TIMEOUT_MS,
 } from '@voyager-crew/bridge-protocol';
 import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -159,6 +160,31 @@ describe('job state machine', () => {
     const job = await finished(t, jobId);
     expect(job.status).toBe('detached');
     expect(job.checkpoints.sent).toMatchObject({ conversationId: 'c-1' });
+    expect(fake.tasks.filter((task) => task.op === 'composer.send')).toHaveLength(1);
+  });
+
+  it('gives the reply wait the longest budget the bridge allows, enough for a reply of many hours', async () => {
+    const { t, fake } = await setup();
+    fake.start();
+    const { jobId } = data<JobSubmitResponse>(await submitAsk(t));
+    expect((await finished(t, jobId)).status).toBe('succeeded');
+    const waitTask = fake.tasks.find((task) => task.op === 'turns.waitReply');
+    expect(waitTask?.params).not.toHaveProperty('timeoutMs');
+    expect(waitTask?.deadlineMs).toBeGreaterThanOrEqual(WAIT_REPLY_MAX_TIMEOUT_MS);
+    expect(WAIT_REPLY_MAX_TIMEOUT_MS).toBeGreaterThanOrEqual(12 * 3_600_000);
+  });
+
+  it('is detached, and sends nothing again, when the reply stalls after the send', async () => {
+    const { t, fake } = await setup();
+    fake.handlers['turns.waitReply'] = () => {
+      throw new OpError('reply-stalled');
+    };
+    fake.start();
+    const { jobId } = data<JobSubmitResponse>(await submitAsk(t));
+    const job = await finished(t, jobId);
+    expect(job.status).toBe('detached');
+    expect(job.error?.code).toBe('reply-stalled');
+    expect(exitForJob(job)).toBe(6);
     expect(fake.tasks.filter((task) => task.op === 'composer.send')).toHaveLength(1);
   });
 
