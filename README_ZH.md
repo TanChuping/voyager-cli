@@ -75,7 +75,12 @@ voyager project remove "论文" old-notes.md         # 立即删除且无法恢�
 
 ## 给 agent 用
 
-Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 Voyager CLI。
+Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 Voyager CLI。先装上教它们怎么用的 skill：
+
+```sh
+npx skills add voyager-crew/voyager-cli
+```
+
 [`skills/voyager/SKILL.md`](skills/voyager/SKILL.md) 就是写给它们看的：JSON 输出、每个退出码的含义、怎么等长任务而不把问题发两遍，以及接着问时用
 `--chat` 加上次拿到的对话 id，而不是 `--continue`。
 

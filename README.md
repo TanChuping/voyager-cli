@@ -83,7 +83,13 @@ voyager project remove "Thesis" old-notes.md       # immediate and permanent; as
 
 ## Using it from an agent
 
-Claude Code, Codex and any other agent that can run shell commands can use Voyager CLI.
+Claude Code, Codex and any other agent that can run shell commands can use Voyager CLI. Install
+the skill that teaches them how:
+
+```sh
+npx skills add voyager-crew/voyager-cli
+```
+
 [`skills/voyager/SKILL.md`](skills/voyager/SKILL.md) is written for them: JSON output, what each
 exit code means, how to wait for a long job without sending the prompt twice, and how to follow
 up with `--chat` and the conversation id it got rather than `--continue`.
