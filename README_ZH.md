@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Voyager logo" width="96" height="96">
-  <h1>voyager</h1>
+  <img src="https://raw.githubusercontent.com/voyager-crew/voyager-cli/main/assets/logo.svg" alt="Voyager CLI logo" width="96" height="96">
+  <h1>Voyager CLI</h1>
   <p>在终端里向 ChatGPT 提问，或者交给你的 coding agent 去问，<br>用的就是你浏览器里已经登录的那个 ChatGPT。</p>
   <p>
     <a href="https://www.npmjs.com/package/@voyager-crew/cli"><img src="https://img.shields.io/npm/v/@voyager-crew/cli?style=flat-square" alt="npm version"></a>
@@ -13,27 +13,31 @@
 voyager ask "帮我审一下这份设计" --attach ./docs/design.md
 ```
 
-`voyager` 把问题交给 [Voyager](https://github.com/voyager-crew/voyager) 浏览器插件。插件在
-ChatGPT 标签页里填好问题、等它回答完，再把回答存成 `response.md`。全程都在你自己的电脑上：命令行只监听
-`127.0.0.1`，ChatGPT 看到的就是你浏览器里一次普通的对话。
+Voyager CLI 是 [Voyager](https://github.com/voyager-crew/voyager) 浏览器插件里 **ChatGPT 本地桥**
+的参考客户端。本地桥让本机程序可以跟 ChatGPT 网页版协作：打开对话、附文件发送、等回复写完再读取、管理项目文件。Voyager CLI
+把这些带到终端里，每次的回答存成 `response.md`。全程都在你自己的电脑上：命令行只监听 `127.0.0.1`，ChatGPT
+看到的就是你浏览器里一次普通的对话。[了解本地桥 →](https://voyager.nagi.fun/guide/local-bridge)
 
 ## 安装
 
-1. 安装命令行（需要 Node.js 20.3 或更高版本）：
+1. 安装 Voyager CLI（需要 Node.js 20.3 或更高版本）：
 
    ```sh
    npm install -g @voyager-crew/cli
    ```
 
-2. 在浏览器里安装 Voyager。打开插件弹窗，进入 **插件**，打开 **ChatGPT · 本地桥**，并允许访问
-   chatgpt.com。
+2. 安装 Voyager 插件，需要 2.1.0 或更高版本：
+   [Chrome](https://chromewebstore.google.com/detail/iifacdnjakkhjjiengaffnegbndgingi) ·
+   [Edge](https://microsoftedge.microsoft.com/addons/detail/voyager/gibmkggjijalcjinbdhcpklodjkhhlne) ·
+   [Firefox](https://addons.mozilla.org/firefox/addon/gemini-voyager/)。打开插件弹窗，进入
+   **插件**，打开 **ChatGPT · 本地桥**，并允许访问 chatgpt.com。
 3. 配对一次：
 
    ```sh
    voyager pair
    ```
 
-   把它显示的 8 位配对码填进弹窗里「本地桥」的设置。
+   在 ChatGPT 标签页上打开 Voyager 弹窗，把它显示的 8 位配对码填进「本地桥接」的设置。
 
 ## 提问
 
@@ -71,7 +75,7 @@ voyager project remove "论文" old-notes.md         # 立即删除且无法恢�
 
 ## 给 agent 用
 
-Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 `voyager`。
+Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 Voyager CLI。
 [`skills/voyager/SKILL.md`](skills/voyager/SKILL.md) 就是写给它们看的：JSON 输出、每个退出码的含义、怎么等长任务而不把问题发两遍，以及接着问时用
 `--chat` 加上次拿到的对话 id，而不是 `--continue`。
 
@@ -80,7 +84,7 @@ Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 `voyage
 
 ## 须知
 
-- 桥会自己打开一个 ChatGPT 标签页，用完关掉。如果 ChatGPT 要求登录或人机验证，`voyager`
+- 桥会自己打开一个 ChatGPT 标签页，用完关掉。如果 ChatGPT 要求登录或人机验证，Voyager CLI
   会停下来告诉你（退出码 3），不会绕过。
 - 全部命令见 `voyager --help`。状态保存在 `~/.voyager`（或 `$VOYAGER_HOME`），只有你的用户能读。
 - 已在 Chrome 中测试。Edge 和 Firefox 版的 Voyager 也带这个桥；Safari 版没有。

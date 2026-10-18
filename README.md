@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Voyager logo" width="96" height="96">
-  <h1>voyager</h1>
+  <img src="https://raw.githubusercontent.com/voyager-crew/voyager-cli/main/assets/logo.svg" alt="Voyager CLI logo" width="96" height="96">
+  <h1>Voyager CLI</h1>
   <p>Ask ChatGPT from your terminal, or let your coding agent do it,<br>through the ChatGPT you are already signed in to in your browser.</p>
   <p>
     <a href="https://www.npmjs.com/package/@voyager-crew/cli"><img src="https://img.shields.io/npm/v/@voyager-crew/cli?style=flat-square" alt="npm version"></a>
@@ -13,28 +13,35 @@
 voyager ask "Review this design" --attach ./docs/design.md
 ```
 
-`voyager` hands the prompt to the [Voyager](https://github.com/voyager-crew/voyager) browser
-extension, which types it into a ChatGPT tab, waits for the answer and saves it as
-`response.md`. Everything stays on your machine: the CLI listens on `127.0.0.1` only, and
-ChatGPT sees an ordinary chat from your own browser.
+Voyager CLI is the reference client for the **ChatGPT Local Bridge** in the
+[Voyager](https://github.com/voyager-crew/voyager) browser extension. The bridge lets programs on
+your computer work with ChatGPT on the web: open a chat, send a prompt with files, wait for the
+reply and read it, manage project files. Voyager CLI puts that in your terminal and saves each
+reply as `response.md`. Everything stays on your machine: the CLI listens on `127.0.0.1` only,
+and ChatGPT sees an ordinary chat from your own browser.
+[More about the bridge →](https://voyager.nagi.fun/en/guide/local-bridge)
 
 ## Setup
 
-1. Install the CLI (Node.js 20.3 or later):
+1. Install Voyager CLI (Node.js 20.3 or later):
 
    ```sh
    npm install -g @voyager-crew/cli
    ```
 
-2. Install Voyager in your browser. In its popup, open **Plugins**, turn on
-   **ChatGPT · Local Bridge** and allow access to chatgpt.com.
+2. Install the Voyager extension, version 2.1.0 or later:
+   [Chrome](https://chromewebstore.google.com/detail/iifacdnjakkhjjiengaffnegbndgingi) ·
+   [Edge](https://microsoftedge.microsoft.com/addons/detail/voyager/gibmkggjijalcjinbdhcpklodjkhhlne) ·
+   [Firefox](https://addons.mozilla.org/firefox/addon/gemini-voyager/). In its popup, open
+   **Plugins**, turn on **ChatGPT · Local Bridge** and allow access to chatgpt.com.
 3. Pair them once:
 
    ```sh
    voyager pair
    ```
 
-   Enter the eight-character code it prints in the Local Bridge settings in the popup.
+   Open the Voyager popup on a ChatGPT tab and enter the eight-character code it prints in the
+   Local Bridge settings.
 
 ## Asking
 
@@ -76,7 +83,7 @@ voyager project remove "Thesis" old-notes.md       # immediate and permanent; as
 
 ## Using it from an agent
 
-Claude Code, Codex and any other agent that can run shell commands can use `voyager`.
+Claude Code, Codex and any other agent that can run shell commands can use Voyager CLI.
 [`skills/voyager/SKILL.md`](skills/voyager/SKILL.md) is written for them: JSON output, what each
 exit code means, how to wait for a long job without sending the prompt twice, and how to follow
 up with `--chat` and the conversation id it got rather than `--continue`.
@@ -87,7 +94,7 @@ One job runs at a time. Every result also names your ChatGPT plan (`Pro Lite ($1
 ## Good to know
 
 - The bridge opens its own ChatGPT tab and closes it when done. If ChatGPT asks you to sign
-  in or solve a challenge, `voyager` stops and says so (exit 3); it never works around it.
+  in or solve a challenge, Voyager CLI stops and says so (exit 3); it never works around it.
 - Commands: `voyager --help`. State lives in `~/.voyager` (or `$VOYAGER_HOME`), private to
   your user.
 - Tested in Chrome. Edge and Firefox builds of Voyager include the bridge too; Safari does not.

@@ -1,4 +1,4 @@
-# Contributing to voyager
+# Contributing to Voyager CLI
 
 ```sh
 bun install

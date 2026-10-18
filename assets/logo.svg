@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Voyager CLI</title>
+  <defs>
+    <linearGradient id="mintL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38C8F5"/><stop offset="1" stop-color="#7DF9D6"/></linearGradient>
+    <linearGradient id="mintR" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38C8F5"/><stop offset="1" stop-color="#7DF9D6"/></linearGradient>
+    <linearGradient id="sparkH" x1="150" y1="0" x2="362" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2F6BFF"/><stop offset="0.5" stop-color="#22D3B8"/><stop offset="1" stop-color="#43F06E"/></linearGradient>
+    <linearGradient id="sparkV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F6BFF"/><stop offset="0.5" stop-color="#22D3B8"/><stop offset="1" stop-color="#43F06E"/></linearGradient>
+    <filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#0D111D"/>
+  <path d="M122.0 169.0 L182.0 214 L122.0 259.0" fill="none" stroke="url(#mintL)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/><path d="M390.0 169.0 L330.0 214 L390.0 259.0" fill="none" stroke="url(#mintR)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/><rect x="227.0" y="322.0" width="58" height="32" rx="9" fill="url(#sparkV)" filter="url(#glow)"/>
+</svg>
