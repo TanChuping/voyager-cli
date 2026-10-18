@@ -27,6 +27,7 @@
     "dist/cli.mjs",
     "skills",
     "README.md",
+    "README_ZH.md",
     "LICENSE"
   ],
   "engines": {

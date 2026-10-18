@@ -1,7 +1,13 @@
-# voyager
-
-Ask ChatGPT from your terminal, or let your coding agent do it, through the ChatGPT you are
-already signed in to in your browser.
+<div align="center">
+  <img src="assets/logo.png" alt="Voyager logo" width="96" height="96">
+  <h1>voyager</h1>
+  <p>Ask ChatGPT from your terminal, or let your coding agent do it,<br>through the ChatGPT you are already signed in to in your browser.</p>
+  <p>
+    <a href="https://www.npmjs.com/package/@voyager-crew/cli"><img src="https://img.shields.io/npm/v/@voyager-crew/cli?style=flat-square" alt="npm version"></a>
+    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license">
+  </p>
+  <p><b>English</b> • <a href="README_ZH.md">简体中文</a></p>
+</div>
 
 ```sh
 voyager ask "Review this design" --attach ./docs/design.md
