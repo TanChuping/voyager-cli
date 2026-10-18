@@ -1,99 +1,91 @@
-# voyager-cli
+# voyager
 
-`voyager` is the local half of the Voyager Local Bridge. `voyager serve` listens on
-`127.0.0.1` only. The Voyager extension long-polls it for tasks and runs neutral ops
-(open a conversation, send, wait for the reply, read) in a ChatGPT tab it opens itself.
-Plugins such as `ask` combine those ops, and their `run()` executes inside serve, so a job
-outlives the terminal that started it.
-
-> Status: Phase C in progress. `ask` attaches files and folders and selects the model
-> (`--model`, default GPT-6 Pro, which stays selected). Downloads, `--out`,
-> `job harvest` and third-party plugins arrive later.
+Ask ChatGPT from your terminal, or let your coding agent do it, through the ChatGPT you are
+already signed in to in your browser.
 
 ```sh
-voyager pair                             # one-time code for the extension popup
-voyager ask --json "Reply with OK"       # new conversation → response.md
-voyager ask --model high "Quick check"   # pro (default), extra-high, high, medium, instant, current
-voyager read https://chatgpt.com/c/<id>  # an existing conversation's last finished reply
-voyager ask --chat <link|id> "Follow-up" # ask in an existing conversation
-voyager ask --continue "And then?"       # ask where the last succeeded ask/read was
-voyager status
-voyager job list | show <id> | wait <id> | cancel <id>
+voyager ask "Review this design" --attach ./docs/design.md
 ```
 
-A Pro reply can take hours. `ask` waits for it as long as ChatGPT is still generating; the job
-fails `reply-stalled` (exit 6) only after 20 minutes without any activity, and gives up at 12
-hours. `--timeout` bounds only how long a command waits in the foreground. For long prompts,
-submit once and wait in rounds:
+`voyager` hands the prompt to the [Voyager](https://github.com/voyager-crew/voyager) browser
+extension, which types it into a ChatGPT tab, waits for the answer and saves it as
+`response.md`. Everything stays on your machine: the CLI listens on `127.0.0.1` only, and
+ChatGPT sees an ordinary chat from your own browser.
+
+## Setup
+
+1. Install the CLI (Node.js 20.3 or later):
+
+   ```sh
+   npm install -g @voyager-crew/cli
+   ```
+
+2. Install Voyager in your browser. In its popup, open **Plugins**, turn on
+   **ChatGPT · Local Bridge** and allow access to chatgpt.com.
+3. Pair them once:
+
+   ```sh
+   voyager pair
+   ```
+
+   Enter the eight-character code it prints in the Local Bridge settings in the popup.
+
+## Asking
 
 ```sh
-voyager ask --json --no-wait "…"                 # → {"jobId": "…", "status": "running"}
-voyager job wait <jobId> --timeout 10m --json    # exit 4: still running, wait again
+voyager ask "Explain this stack trace" --attach crash.log
+voyager ask "Look over the repo" --attach ./src     # folders go up as a zip, secrets left out
+voyager ask --model high "Quick sanity check"       # pro (default), extra-high, high, medium, instant
+voyager ask --chat <link|id> "And the edge cases?"  # follow up in a conversation
+voyager read <link|id>                              # save a conversation's latest reply
 ```
 
-`job wait` prints the same result and exit code as `ask` once the job ends. Never resend
-the prompt after exit 4: the job is still running.
+Every ask uses GPT-6 Pro in chat mode unless you pick another effort, and leaves it selected.
+Voyager never switches ChatGPT to Work mode. The reply lands in `~/.voyager/jobs/<id>/output/`,
+and `--json` prints its path along with the conversation link.
 
-ChatGPT projects keep files every chat in the project can read:
+### Long answers
+
+Pro can think for hours. `ask` waits as long as ChatGPT is still working on the reply, and
+only gives up after 20 minutes with no sign of life. To get your terminal back, submit and
+collect later:
 
 ```sh
-voyager project list                          # g-p-<id>  name, from the sidebar
-voyager project create "论文 Q3"
-voyager project files "论文 Q3"               # <project>: its name or g-p- id
-voyager project upload "论文 Q3" ./thesis     # a folder goes up as thesis.zip, credentials left out
-voyager project remove "论文 Q3" notes.md --yes
-voyager ask --project "论文 Q3" "Summarise thesis.zip"   # a new chat in the project
+voyager ask --no-wait "…"            # prints a job id
+voyager job wait <id> --timeout 10m  # exit 4 means still running: wait again, never resend
 ```
 
-ChatGPT ignores an upload under a name the project already holds, without a word, so
-`upload` replaces: it removes the old file, uploads, and checks the new one is listed once.
-A file unchanged since this machine uploaded it is skipped (fingerprints in
-`plugin-state/project.json`). Removing is immediate and cannot be undone: `remove` asks on a
-terminal, and without one it runs only with `--yes`. Put material many chats need in the
-project; use `--attach` for files one question needs.
+## Projects
 
-Every result also names the ChatGPT plan: `account` in JSON (`null` with
-`accountNote: "not-observed-yet"` until a page has loaded with the bridge on), and a
-`plan: Pro ($200) (monthly, renews 9 Nov 2026)` line on stderr and in `voyager status`. It is what
-the bridge's ChatGPT pages were told when they last loaded, so it can trail a recent change,
-and it is no measure of limits. Chrome and Edge only; on Firefox it stays `null`.
-
-State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
-`serve.json`, `serve.lock`, `cli-token` and `pairings.json` (both 0600), `jobs/<id>/`,
-`last-conversation.json` (0600, what `--continue` uses), `plugin-state/` (each plugin's own
-JSON, 0600) and `logs/serve.log`.
-`skills/voyager/SKILL.md` tells an agent how to use the CLI.
-
-## Development
+A ChatGPT project keeps files that every chat in it can read, so a codebase or a paper goes
+up once instead of with every question.
 
 ```sh
-bun install
-bun run build        # dist/cli.mjs, a single file with no runtime dependencies
-bun run test         # vitest; test/cli/e2e.test.ts builds its own copy and spawns it
-bun run typecheck
-bun run lint:check
-bun run format:check
+voyager project create "Thesis"
+voyager project upload "Thesis" ./thesis           # replaced when it changes, skipped when it hasn't
+voyager ask --project "Thesis" "Where is the argument weakest?"
+voyager project files "Thesis"
+voyager project remove "Thesis" old-notes.md       # immediate and permanent; asks first
 ```
 
-Without building, run it from source with `bun src/cli/main.ts <command>`.
+## Using it from an agent
 
-### The protocol package
+Claude Code, Codex and any other agent that can run shell commands can use `voyager`.
+[`skills/voyager/SKILL.md`](skills/voyager/SKILL.md) is written for them: JSON output, what each
+exit code means, how to wait for a long job without sending the prompt twice, and how to follow
+up with `--chat` and the conversation id it got rather than `--continue`.
 
-`@voyager-crew/bridge-protocol` is the source of truth for wire types, validators and
-golden fixtures. It lives in the Voyager repository (`packages/bridge-protocol`) and is
-installed from npm. A protocol change lands there first: raising its version on Voyager's
-`main` stages a release that a maintainer approves, then this package moves to the new
-version. To try an unreleased protocol change, point the dependency at a local checkout
-for a while (`"file:../gemini-voyager/packages/bridge-protocol"`) and run `bun install`.
-The package ships TypeScript source: `bun build` bundles it, and Vitest inlines it
-(`server.deps.inline`).
+One job runs at a time. Every result also names your ChatGPT plan (`Pro Lite ($100)`,
+`Pro ($200)`, …) as the page last reported it.
 
-### Trying it by hand without the extension
+## Good to know
 
-```sh
-VOYAGER_HOME=/tmp/vh bun src/cli/main.ts serve --foreground   # terminal 1
-VOYAGER_HOME=/tmp/vh bun src/cli/main.ts pair                 # terminal 2: prints the code
-```
+- The bridge opens its own ChatGPT tab and closes it when done. If ChatGPT asks you to sign
+  in or solve a challenge, `voyager` stops and says so (exit 3); it never works around it.
+- Commands: `voyager --help`. State lives in `~/.voyager` (or `$VOYAGER_HOME`), private to
+  your user.
+- Tested in Chrome. Edge and Firefox builds of Voyager include the bridge too; Safari does not.
 
-The extension side is the `FakeExtension` in `test/helpers/fakeExtension.ts`.
-`test/cli/e2e.test.ts` shows it pairing and answering an `ask`.
+## License
+
+MIT. Development notes are in [CONTRIBUTING.md](CONTRIBUTING.md).
