@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ensureServe } from '../../client/serveClient';
 import type { CommandDef, ForegroundContext, VoyagerPlugin } from '../../plugins/api';
 import type { PluginRegistry } from '../../plugins/registry';
+import { readLastConversation } from '../../state/lastConversation';
 import type { StatePaths } from '../../state/paths';
 import { newId } from '../../util/ids';
 import { parse, waitTimeout, WAIT_OPTIONS } from '../args';
@@ -59,6 +60,7 @@ export async function pluginCommand(
     cwd: process.cwd(),
     stagingDir: stagingFor(paths),
     note,
+    lastConversation: () => readLastConversation(paths),
   };
   const input = await found.def.prepare(fg, args);
   if (args.options['dry-run'] === true) {

@@ -14,6 +14,7 @@ import {
 import type { CommandDef, JobContext } from '../plugins/api';
 import type { PluginRegistry } from '../plugins/registry';
 import { type ExtensionState, policyFailure } from '../server/extensionState';
+import type { LastConversation } from '../state/lastConversation';
 import { failure, toBridgeError } from '../util/errors';
 import type { Logger } from '../util/log';
 import type { BlobStore } from './blobStore';
@@ -29,6 +30,8 @@ export interface JobRunnerDeps {
   readonly isPaired: () => boolean;
   readonly log: Logger;
   readonly blobs: BlobStore;
+  /** Told about the conversation of each job that succeeds with one (`ask --continue`). */
+  readonly rememberConversation?: (entry: LastConversation) => Promise<void>;
 }
 
 interface Active {
@@ -123,6 +126,8 @@ export class JobRunner {
     // The page may still hold an abandoned task; the job ends only when it lets go.
     await this.deps.slot.idle();
     this.deps.blobs.forgetJob(job.jobId);
+    // Recorded before `done`, so a `--continue` right after the wait finds it.
+    if (status === 'succeeded') await this.remember(job, result);
     this.deps.store.update(job, {
       status,
       ...(error === undefined ? {} : { error }),
@@ -183,6 +188,29 @@ export class JobRunner {
         },
       },
     };
+  }
+
+  private async remember(
+    job: JobRecord,
+    result: Readonly<Record<string, unknown>> | undefined,
+  ): Promise<void> {
+    const conversationId = result?.conversationId;
+    if (this.deps.rememberConversation === undefined || typeof conversationId !== 'string') return;
+    const url = result?.conversationUrl;
+    try {
+      await this.deps.rememberConversation({
+        conversationId,
+        ...(typeof url === 'string' ? { url } : {}),
+        jobId: job.jobId,
+        command: job.command,
+        at: Date.now(),
+      });
+    } catch (error) {
+      this.deps.log.warn('could not record the last conversation', {
+        jobId: job.jobId,
+        error: String(error),
+      });
+    }
   }
 
   private setStatus(job: JobRecord, status: JobStatus): void {

@@ -1,9 +1,10 @@
 import { askPlugin } from '../../plugins/ask/index';
+import { readPlugin } from '../../plugins/read/index';
 import type { CommandDef, VoyagerPlugin } from './api';
 import { CALL_PLUGIN, callPlugin } from './callPlugin';
 
 /** Official plugins ship in the package. Third-party npm plugins load here in Phase C. */
-export const OFFICIAL_PLUGINS: readonly VoyagerPlugin[] = [askPlugin];
+export const OFFICIAL_PLUGINS: readonly VoyagerPlugin[] = [askPlugin, readPlugin];
 
 export class PluginRegistry {
   private readonly plugins = new Map<string, VoyagerPlugin>();

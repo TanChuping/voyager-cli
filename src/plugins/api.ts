@@ -35,6 +35,10 @@ export interface ForegroundContext {
   stagingDir(): Promise<string>;
   /** Progress for the person at the terminal (stderr). */
   note(message: string): void;
+  /** The conversation of the last job that succeeded, if one is recorded. */
+  lastConversation(): Promise<
+    { readonly conversationId: string; readonly url?: string } | undefined
+  >;
 }
 
 export interface Logger {

@@ -15,6 +15,8 @@ export interface StatePaths {
   readonly staging: string;
   readonly logs: string;
   readonly serveLog: string;
+  /** The conversation of the last succeeded job, for `ask --continue` (0600). */
+  readonly lastConversation: string;
 }
 
 export function statePaths(home = defaultHome()): StatePaths {
@@ -29,6 +31,7 @@ export function statePaths(home = defaultHome()): StatePaths {
     staging: join(home, 'staging'),
     logs: join(home, 'logs'),
     serveLog: join(home, 'logs', 'serve.log'),
+    lastConversation: join(home, 'last-conversation.json'),
   };
 }
 

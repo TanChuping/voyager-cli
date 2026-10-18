@@ -10,15 +10,19 @@ outlives the terminal that started it.
 > `job harvest` and third-party plugins arrive in Phase C.
 
 ```sh
-voyager pair                       # one-time code for the extension popup
-voyager ask --json "Reply with OK" # new conversation → response.md
+voyager pair                             # one-time code for the extension popup
+voyager ask --json "Reply with OK"       # new conversation → response.md
+voyager read https://chatgpt.com/c/<id>  # an existing conversation's last finished reply
+voyager ask --chat <link|id> "Follow-up" # ask in an existing conversation
+voyager ask --continue "And then?"       # ask where the last succeeded ask/read was
 voyager status
 voyager job list | show <id> | wait <id> | cancel <id>
 ```
 
 State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
 `serve.json`, `serve.lock`, `cli-token` and `pairings.json` (both 0600), `jobs/<id>/`,
-and `logs/serve.log`. `skills/voyager/SKILL.md` tells an agent how to use the CLI.
+`last-conversation.json` (0600, what `--continue` uses) and `logs/serve.log`.
+`skills/voyager/SKILL.md` tells an agent how to use the CLI.
 
 ## Development
 

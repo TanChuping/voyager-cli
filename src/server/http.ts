@@ -11,6 +11,7 @@ import { JobRunner } from '../jobs/jobRunner';
 import { JobStore } from '../jobs/jobStore';
 import { TaskSlot } from '../jobs/taskSlot';
 import { PluginRegistry } from '../plugins/registry';
+import { recordLastConversation } from '../state/lastConversation';
 import type { StatePaths } from '../state/paths';
 import { BridgeFailure, failure } from '../util/errors';
 import { silentLogger, type Logger } from '../util/log';
@@ -111,6 +112,7 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
     extension,
     isPaired: () => pairing.current !== null,
     log,
+    rememberConversation: (entry) => recordLastConversation(options.paths, entry),
   });
   const core: ServerCore = {
     paths: options.paths,
