@@ -63,9 +63,11 @@ export class JobRunner {
     const required = this.deps.registry.plugin(plugin)?.requiresOps ?? [];
     const missing = available === null ? [] : required.filter((op) => !available.has(op));
     if (missing.length > 0) {
-      throw failure('unsupported-op', `the extension does not offer ${missing.join(', ')}`, {
-        missing,
-      });
+      throw failure(
+        'unsupported-op',
+        `the extension does not offer ${missing.join(', ')}; update the Voyager extension`,
+        { missing },
+      );
     }
 
     const job = this.deps.store.create(plugin, command, input);

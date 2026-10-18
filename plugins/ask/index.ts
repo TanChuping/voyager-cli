@@ -2,8 +2,9 @@ import type { BlobRef, ConversationOpenResult } from '@voyager-crew/bridge-proto
 /**
  * Official `ask` plugin. New conversation (or an existing one: `--chat`, or
  * `--continue` for the last job's) → attach (with `--attach`) → send → wait
- * for the reply → `output/response.md`. `--model`, `--out` and restore arrive
- * later in Phase C; the options exist now so the command line is stable.
+ * for the reply → `output/response.md`. `--model` (default `pro`) picks the
+ * model right after the tab opens and leaves it selected (see `./model.ts`). `--out` arrives later in Phase C; the option exists now
+ * so the command line is stable.
  *
  * `--attach` packs in the foreground (`stageAttachments`: files as they are,
  * folders as zips without credentials); `run` registers each staged file as a
@@ -28,6 +29,13 @@ import {
   responseBlock,
   saveResponse,
 } from '../shared/response';
+import {
+  type AskModel,
+  chooseModel,
+  DEFAULT_ASK_MODEL,
+  type ModelReport,
+  parseAskModel,
+} from './model';
 
 export { EXTERNAL_CONTENT_NOTICE };
 
@@ -37,9 +45,11 @@ export interface AskInput {
   /** Ask in this existing conversation instead of a new one. */
   readonly conversationId?: string;
   readonly attachments?: readonly StagedAttachment[];
+  /** Defaults to `pro`; `current` keeps the page's selection. */
+  readonly model?: AskModel;
 }
 
-const PHASE_C_OPTIONS = ['model', 'out', 'no-restore'] as const;
+const PHASE_C_OPTIONS = ['out'] as const;
 
 /** Upload budget for the page: the transfer and ChatGPT's own upload, sized by the bytes. */
 export function attachTimeoutMs(bytes: number): number {
@@ -91,6 +101,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
   }
   const prompt = argv.positionals.join(' ').trim();
   if (prompt === '') throw failure('bad-request', 'usage: voyager ask "<prompt>"');
+  const model = parseAskModel(argv.options.model);
   const conversationId = await targetConversation(fg, argv);
   const raw = argv.options.attach;
   const paths = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]).map(String);
@@ -101,6 +112,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
   return {
     prompt,
     keepTab: argv.options['keep-tab'] === true,
+    model,
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(attachments.length > 0 ? { attachments } : {}),
   };
@@ -154,17 +166,11 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
         : `ChatGPT is not in chat mode (${opened.ready.mode})`,
     );
   }
-  try {
-    // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
-    await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
-    return await askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened });
-  } catch (error) {
-    // The mode switch is account-wide and only a close switches it back: a failure must not leave it.
-    if (opened.ready.switchedMode !== undefined && !input.keepTab) {
-      await closeBridgeTab(ctx, opened.tabId);
-    }
-    throw error;
-  }
+  // Kept free of `conversationId`: that key in a checkpoint marks a sent prompt.
+  await ctx.checkpoint('opened', { tabId: opened.tabId, url: opened.url });
+  // Before anything is attached or typed: the prompt goes out on the model asked for.
+  const model = await chooseModel(ctx, input.model ?? DEFAULT_ASK_MODEL);
+  return askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened, model });
 }
 
 async function askInTab(
@@ -176,12 +182,14 @@ async function askInTab(
     attachments,
     existing,
     opened,
+    model,
   }: {
     readonly startedAt: number;
     readonly blobs: readonly BlobRef[];
     readonly attachments: readonly StagedAttachment[];
     readonly existing: string | undefined;
     readonly opened: ConversationOpenResult;
+    readonly model: ModelReport;
   },
 ): Promise<JobResult> {
   if (blobs.length > 0) {
@@ -252,7 +260,7 @@ async function askInTab(
           ? {}
           : { fileCount: attachments[index]?.fileCount }),
       })),
-      model: { requested: null, observed: null, previous: null, restored: null },
+      model,
       timings: {
         startedAt,
         sentAt,
@@ -275,6 +283,8 @@ export const askPlugin = definePlugin({
     'turns.waitReply',
     'turns.read',
     'conversation.close',
+    // Every ask selects a model unless `--model current`: an extension without it is told to update up front.
+    'model.select',
   ],
   commands: {
     ask: {
@@ -290,7 +300,11 @@ export const askPlugin = definePlugin({
           type: 'boolean',
           summary: 'ask in the conversation of the last ask or read that succeeded',
         },
-        model: { type: 'string', summary: 'model preset, e.g. pro (Phase C)' },
+        model: {
+          type: 'string',
+          summary:
+            'GPT-6 effort: pro (default), extra-high, high, medium, instant; current keeps the page as it is',
+        },
         attach: {
           type: 'string',
           multiple: true,
@@ -301,7 +315,6 @@ export const askPlugin = definePlugin({
           summary: 'pack the attachments and print what would be sent, without sending',
         },
         out: { type: 'string', summary: 'also copy the outputs to this folder (Phase C)' },
-        'no-restore': { type: 'boolean', summary: 'keep the selected model afterwards (Phase C)' },
       },
       prepare,
       run,

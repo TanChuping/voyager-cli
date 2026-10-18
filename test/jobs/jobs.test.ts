@@ -124,6 +124,7 @@ describe('job state machine', () => {
     expect(statuses).toEqual(['running', 'waiting-reply', 'running', 'succeeded']);
     expect(fake.tasks.map((task) => task.op)).toEqual([
       'conversation.open',
+      'model.select',
       'composer.send',
       'turns.waitReply',
       'turns.read',
@@ -179,7 +180,11 @@ describe('job state machine', () => {
       const job = await finished(t, jobId);
       expect(job.status).toBe('failed');
       expect(job.error).toMatchObject({ code: 'bad-request', details: { checkpoint: 'sent' } });
-      expect(fake.tasks.map((task) => task.op)).toEqual(['conversation.open', 'composer.send']);
+      expect(fake.tasks.map((task) => task.op)).toEqual([
+        'conversation.open',
+        'model.select',
+        'composer.send',
+      ]);
     } finally {
       if (jobDir !== undefined) await chmod(jobDir, 0o700);
     }

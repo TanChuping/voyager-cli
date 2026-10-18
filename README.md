@@ -6,12 +6,14 @@
 Plugins such as `ask` combine those ops, and their `run()` executes inside serve, so a job
 outlives the terminal that started it.
 
-> Status: Phase B, text-only `ask`. Attachments, downloads, `--model`, restore,
-> `job harvest` and third-party plugins arrive in Phase C.
+> Status: Phase C in progress. `ask` attaches files and folders and selects the model
+> (`--model`, default GPT-6 Pro, which stays selected). Downloads, `--out`,
+> `job harvest` and third-party plugins arrive later.
 
 ```sh
 voyager pair                             # one-time code for the extension popup
 voyager ask --json "Reply with OK"       # new conversation → response.md
+voyager ask --model high "Quick check"   # pro (default), extra-high, high, medium, instant, current
 voyager read https://chatgpt.com/c/<id>  # an existing conversation's last finished reply
 voyager ask --chat <link|id> "Follow-up" # ask in an existing conversation
 voyager ask --continue "And then?"       # ask where the last succeeded ask/read was

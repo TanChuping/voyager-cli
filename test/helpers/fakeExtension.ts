@@ -69,6 +69,17 @@ export const ASK_HANDLERS: Partial<Record<OpName, OpHandler>> = {
     files: [],
   }),
   'conversation.close': () => ({ closed: true }),
+  // The page already shows GPT-6 Pro, so nothing changes and nothing is restored.
+  'model.select': (params) => {
+    const selection = { modelId: 'gpt-6', modelLabel: 'GPT-6', effortIndex: 4, effortMax: 4 };
+    const capture = (params as { capturePrevious?: boolean }).capturePrevious === true;
+    return {
+      changed: false,
+      ...(capture ? { previous: selection } : {}),
+      observed: selection,
+      evidence: {},
+    };
+  },
 };
 
 interface Running {
