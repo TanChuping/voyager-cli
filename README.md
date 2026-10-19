@@ -104,6 +104,11 @@ a restriction: the app writes wherever its GitHub installation allows, without a
 repository, voyager stops with exit code 3; add the repository at
 [github.com/settings/installations](https://github.com/settings/installations).
 
+Before some app actions, such as writing a file to Drive, ChatGPT stops the reply on a card that asks
+"Allow ChatGPT to use Google Drive?". voyager then stops with exit code 3 and the conversation link, where
+you answer it. Pass `--approve-apps always` to have the extension click "Always allow" for you, or
+`--approve-apps once` for "Allow once". The card can come back after "Always allow".
+
 ## Using it from an agent
 
 Claude Code, Codex and any other agent that can run shell commands can use Voyager CLI. Install

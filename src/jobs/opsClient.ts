@@ -22,6 +22,8 @@ const DEFAULT_OP_TIMEOUT_MS: Readonly<Record<Exclude<OpName, 'turns.waitReply'>,
   'composer.attach': 120_000,
   'composer.send': 30_000,
   'turns.read': 30_000,
+  // One click under a 20 s page lease.
+  'turns.approve': 30_000,
   // The size is unknown until the page has the file; up to MAX_DOWNLOAD_BYTES in 4 MiB chunks.
   'files.download': 10 * 60_000,
   'project.list': 20_000,

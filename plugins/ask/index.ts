@@ -1,4 +1,8 @@
-import type { BlobRef, ConversationOpenResult } from '@voyager-crew/bridge-protocol';
+import type {
+  ApprovalChoice,
+  BlobRef,
+  ConversationOpenResult,
+} from '@voyager-crew/bridge-protocol';
 /**
  * Official `ask` plugin. New conversation (or an existing one: `--chat`, or
  * `--continue` for the last job's) → attach (with `--attach`) → send → wait
@@ -41,6 +45,7 @@ import {
   saveReplyFiles,
   saveResponse,
 } from '../shared/response';
+import { parseApproveApps, waitReplyApproving } from './approval';
 import { prepareDrive } from './drive';
 import {
   type AskModel,
@@ -67,6 +72,8 @@ export interface AskInput {
   readonly noFiles?: boolean;
   /** `--repo`: a reply that says the repository is out of reach fails the job. */
   readonly repo?: RepoTarget;
+  /** `--approve-apps`: how to answer ChatGPT's app approval card; unset ends the job on it. */
+  readonly approveApps?: ApprovalChoice;
 }
 
 const PHASE_C_OPTIONS = ['out'] as const;
@@ -144,6 +151,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     dryRun: argv.options['dry-run'] === true,
   });
   const repo = typeof argv.options.repo === 'string' ? parseRepo(argv.options.repo) : undefined;
+  const approveApps = parseApproveApps(argv.options['approve-apps']);
   if (repo !== undefined) fg.note(`repo: ChatGPT is asked to write only to ${repo.branch}`);
   const prompt = [asked, drive.block, repo === undefined ? '' : repoPromptBlock(repo)]
     .filter((part) => part !== '')
@@ -157,6 +165,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(attachments.length > 0 ? { attachments } : {}),
     ...(repo === undefined ? {} : { repo }),
+    ...(approveApps === undefined ? {} : { approveApps }),
   };
 }
 
@@ -294,10 +303,11 @@ async function askInTab(
     tabId: opened.tabId,
   });
 
-  const reply = await ctx.ops.call('turns.waitReply', {
-    conversationId: sent.conversationId,
-    afterUserTurnKey: sent.userTurnKey,
-  });
+  const reply = await waitReplyApproving(
+    ctx,
+    { conversationId: sent.conversationId, afterUserTurnKey: sent.userTurnKey, url: sent.url },
+    input.approveApps,
+  );
   const repliedAt = Date.now();
   const read = await ctx.ops.call('turns.read', {
     conversationId: sent.conversationId,
@@ -401,6 +411,11 @@ export const askPlugin = definePlugin({
           summary: 'pack the attachments and print what would be sent, without sending',
         },
         out: { type: 'string', summary: 'also copy the outputs to this folder (Phase C)' },
+        'approve-apps': {
+          type: 'string',
+          summary:
+            "answer ChatGPT's app approval card (Google Drive, GitHub…) mid-reply: always (its Always allow, kept in your ChatGPT settings) or once; without it the job stops there (exit 3)",
+        },
         'no-files': {
           type: 'boolean',
           summary: 'do not download the files the reply offers (saved under files/ otherwise)',

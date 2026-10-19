@@ -60,7 +60,7 @@ voyager ask --json --project <project> "Use thesis.zip to …"   # a new chat in
 
 ## Google Drive and GitHub
 
-ChatGPT's own Google Drive and GitHub apps can read files instead of an upload through the page. They act as the person's connected accounts, with no confirmation step, and must already be connected in ChatGPT.
+ChatGPT's own Google Drive and GitHub apps can read files instead of an upload through the page. They act as the person's connected accounts and must already be connected in ChatGPT.
 
 ```sh
 voyager ask --json --drive ./paper.pdf --drive ./src "Review these"   # put on Drive, file ids in the prompt
@@ -69,6 +69,7 @@ voyager ask --json --repo owner/name "Fix the failing test"           # owner/na
 
 - `--drive` packs like `--attach` (folders zipped, credentials left out) but has no 64 MiB bridge limit (512 MiB per file or zip; files over 20 MiB inside a folder are still left out), and uploads with rclone into a new folder under `$VOYAGER_DRIVE_REMOTE` (or `driveRemote` in `~/.voyager/config.json`), such as `gdrive:Voyager`. Files stay on Drive. Without rclone or a destination it is `bad-request`; the person sets that up. ChatGPT's Drive app must use the same Google account as the rclone remote.
 - `--repo` asks ChatGPT to commit only to a new `chatgpt/<time>-<id>` branch, printed on stderr; the app could write elsewhere, so check the branch before merging anything. A repository the app cannot reach ends as `permission-missing` (exit 3): the person adds it at github.com/settings/installations. The reply is still saved (`error.details.responsePath`).
+- Before some app actions (writing to Drive, say) ChatGPT stops the reply on an approval card ("Allow ChatGPT to use Google Drive?"). Without `--approve-apps` the job ends as `approval-required` (exit 3); `error.message` holds the conversation link, where the person answers it, then `voyager read <link> --json` gets the reply. Pass `--approve-apps always` (ChatGPT's "Always allow") or `--approve-apps once` only when the person has said to answer it for them.
 - No rclone destination, but Google Drive for desktop is installed (a `~/Library/CloudStorage/GoogleDrive-*` folder on macOS): ask the person whether to share the files through it. On a yes, copy them into a new folder under its `My Drive`, wait until Drive has synced them, then name the folder and files in the prompt and ask ChatGPT to read them with its Google Drive app. Write names, not drive.google.com links: Voyager extensions up to 2.1.1 fail to send a prompt holding a Drive link.
 
 ## Long replies
@@ -87,15 +88,15 @@ voyager job wait <jobId> --timeout 10m --json
 
 ## Exit codes
 
-| Code | Meaning                                                                             | Next step                                               |
-| ---- | ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 0    | succeeded (also when some `failedFiles` could not be downloaded)                    | read `responsePath` and `files`; report `failedFiles`   |
-| 2    | failed (bad input, or the page changed); `send-unverified`: the prompt may be sent  | report `error.message`; never resend `send-unverified`  |
-| 3    | needs a person (`login-required`, `challenge`, `rate-limited`, `policy-denied`, …)  | stop and tell the person what `error.code` asks of them |
-| 4    | wait timed out; job continues                                                       | `voyager job wait <jobId> --json` again; do not resend  |
-| 5    | busy: another job runs (`error.details.activeJobId`)                                | wait for that job, or ask the person                    |
-| 6    | lost page or server (`detached`), the reply stalled (`reply-stalled`), or cancelled | tell the person; the prompt may already be in ChatGPT   |
-| 7    | not paired, or the extension is offline                                             | ask the person to pair or open the browser              |
+| Code | Meaning                                                                                | Next step                                               |
+| ---- | -------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 0    | succeeded (also when some `failedFiles` could not be downloaded)                       | read `responsePath` and `files`; report `failedFiles`   |
+| 2    | failed (bad input, or the page changed); `send-unverified`: the prompt may be sent     | report `error.message`; never resend `send-unverified`  |
+| 3    | needs a person (`login-required`, `challenge`, `approval-required`, `rate-limited`, …) | stop and tell the person what `error.code` asks of them |
+| 4    | wait timed out; job continues                                                          | `voyager job wait <jobId> --json` again; do not resend  |
+| 5    | busy: another job runs (`error.details.activeJobId`)                                   | wait for that job, or ask the person                    |
+| 6    | lost page or server (`detached`), the reply stalled (`reply-stalled`), or cancelled    | tell the person; the prompt may already be in ChatGPT   |
+| 7    | not paired, or the extension is offline                                                | ask the person to pair or open the browser              |
 
 Exactly one job runs at a time, and jobs are never queued. Each prompt is submitted **once**. After any exit other than 0, report to the person and let them decide; a second `voyager ask` with the same prompt would send it again. `send-unverified` means the page may have sent it, so the person checks ChatGPT first.
 

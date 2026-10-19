@@ -67,7 +67,7 @@
 - [ ] 插件：`domText` 跳过 `<style>`、`<svg>` 等非正文节点；顺便看普通用户的草稿功能是否受影响。
 - [ ] 插件：bridge 失败后清掉自己打进输入框的草稿。
 - [x] Google Drive 授权卡抓到了，见 [2026-10-20 现场样本](2026-10-20-approval-card/README.md)。GitHub 的还没见过。
-- [ ] bridge：遇到授权卡时停下，按需要人处理（退出码 3）交给用户，不替用户点。
+- [x] bridge：遇到授权卡默认停下（退出码 3）；加 `--approve-apps always|once` 时由插件替用户点。
 - [ ] 清理测试残留（删除前再确认一次）：Drive 上的 `voyager-drive-test` 文件夹，私有仓库 `Nagi-ovo/voyager-gh-test`，ChatGPT 里的几个测试对话。
 
 ## 实跑结果（只写文件 ID 后）
