@@ -73,6 +73,10 @@ voyager ask --no-wait "…"            # prints a job id
 voyager job wait <id> --timeout 10m  # exit 4 means still running: wait again, never resend
 ```
 
+A Pro turn that builds, runs or renders things in ChatGPT's sandbox can lose its connection
+after about 80 minutes, and then delivers nothing. `--timebox 70` asks it to wrap up at 70
+minutes and hand over what it has, finished and unfinished work apart, in one ZIP.
+
 ## Projects
 
 A ChatGPT project keeps files that every chat in it can read, so a codebase or a paper goes

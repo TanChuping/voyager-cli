@@ -20,6 +20,7 @@ import type {
  *
  * `--drive` puts files on Google Drive and `--repo` names a GitHub repository;
  * both only add to the prompt, for ChatGPT's own apps (`./drive.ts`, `./repo.ts`).
+ * `--timebox` adds a countdown for long sandbox work (`./timebox.ts`).
  */
 import { basename } from 'node:path';
 
@@ -55,6 +56,7 @@ import {
   parseAskModel,
 } from './model';
 import { checkRepoReach, parseRepo, type RepoTarget, repoPromptBlock } from './repo';
+import { parseTimebox, timeboxPromptBlock } from './timebox';
 
 export { EXTERNAL_CONTENT_NOTICE };
 
@@ -153,7 +155,13 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
   const repo = typeof argv.options.repo === 'string' ? parseRepo(argv.options.repo) : undefined;
   const approveApps = parseApproveApps(argv.options['approve-apps']);
   if (repo !== undefined) fg.note(`repo: ChatGPT is asked to write only to ${repo.branch}`);
-  const prompt = [asked, drive.block, repo === undefined ? '' : repoPromptBlock(repo)]
+  const timebox = parseTimebox(argv.options.timebox);
+  const prompt = [
+    asked,
+    drive.block,
+    repo === undefined ? '' : repoPromptBlock(repo),
+    timebox === undefined ? '' : timeboxPromptBlock(timebox),
+  ]
     .filter((part) => part !== '')
     .join('\n\n');
   return {
@@ -405,6 +413,11 @@ export const askPlugin = definePlugin({
           type: 'string',
           multiple: true,
           summary: 'file or folder to attach (repeatable; folders are zipped without credentials)',
+        },
+        timebox: {
+          type: 'string',
+          summary:
+            'ask ChatGPT to wrap up and hand over what it has after this many minutes (70 for long Pro sandbox work)',
         },
         'dry-run': {
           type: 'boolean',

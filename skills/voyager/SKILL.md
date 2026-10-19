@@ -86,6 +86,19 @@ voyager job wait <jobId> --timeout 10m --json
 - Exit 4 (`"waitTimedOut": true`): the job is still running. Run the same `voyager job wait` again. Never send the prompt again.
 - Any other exit: `job wait` prints exactly what `voyager ask --json` would have printed, with the same exit codes.
 
+For work that runs in ChatGPT's sandbox (building, running tests or simulations, rendering or generating files), add `--timebox 70`. A Pro turn doing that can lose its connection after about 80 minutes and then delivers nothing. The flag adds a paragraph asking ChatGPT to wrap up at 70 minutes and hand over what it has: finished and unfinished work apart, in one ZIP, with a first line `finished N / unfinished M / about X minutes`. Questions it only reads and thinks about do not need it.
+
+## Writing the prompt
+
+ChatGPT sees nothing of your conversation, so the prompt carries everything. Pro is careful by nature, which shapes how to write for it:
+
+- Start with a few lines on what you want: the main task, what is in and out of scope, what to deliver, and the one or two criteria that matter most. The rest of the prompt is material for those lines.
+- Give the purpose, the criteria and the trade-offs, not a list of orders. Pro reads "must" and "never" as hard limits and turns defensive: it reports everything and is slow to deliver.
+- Ask it to judge ("decide whether X holds"), not to confirm ("confirm that X holds").
+- Say what it cannot see: callers outside the material, and the real defaults (timeouts, limits), so it does not rate severity from settings nobody uses.
+- In ordinary debugging or review work, avoid words like bypass, exploit, attack, inject, payload or crack; a safety check can take such a prompt for intrusion work and stop the turn halfway. Say workaround, trigger condition, defect or stress test.
+- When files should come back, ask for one ZIP.
+
 ## Exit codes
 
 | Code | Meaning                                                                                | Next step                                               |
