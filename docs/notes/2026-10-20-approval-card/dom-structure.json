@@ -1,0 +1,45 @@
+{
+  "url": "https://chatgpt.com/c/<conversation id removed>",
+  "captured_at": "2026-10-19T17:09:09Z (北京时间 10-20 01:09)",
+  "ui_language": "zh-CN",
+  "mode": "聊天模式，GPT-6 Pro",
+  "card_text": "Google Drive\n允许 ChatGPT 使用 Google Drive 吗？\nChatGPT 将调用 Google Drive 的 Upload File 工具。 查看详情\n始终允许\n拒绝\nEsc\n允许一次\n⏎",
+  "card_class": "flex flex-col overflow-hidden text-default focus:outline-none rounded-3xl border border-default bg-surface-elevated-secondary @container/approval-card",
+  "form_class": "flex shrink-0 items-center gap-2 px-4 pt-2 pb-4 @max-md/approval-card:flex-col @max-md/approval-card:items-stretch",
+  "buttons_in_form": [
+    { "text": "始终允许", "type": "button", "disabled": false },
+    { "text": "拒绝 (kbd Esc)", "type": "button", "disabled": false },
+    { "text": "允许一次 (kbd ⏎)", "type": "button", "disabled": false },
+    { "text": "(只有图标，下拉)", "type": "button", "disabled": false }
+  ],
+  "button_ancestor_chain": [
+    "BUTTON .no-drag cursor-interaction items-center select-none disabled:cursor-default aria",
+    "FORM .flex shrink-0 items-center gap-2 px-4 pt-2 pb-4 @max-md/approval-card:flex-col @",
+    "DIV .flex flex-col overflow-hidden text-default focus:outline-none rounded-3xl border",
+    "DIV .",
+    "DIV .block-BQZwFn",
+    "DIV .flex flex-col gap-3 browser:gap-1",
+    "DIV .group flex flex-col",
+    "DIV .flex flex-col gap-1.5",
+    "DIV .",
+    "DIV .[&_[data-virtualized-turn-content]]:[content-visibility:visible]"
+  ],
+  "tree": [
+    "div",
+    "  div",
+    "    div[role=alert]",
+    "      div",
+    "        div > svg(图标) + span \"Google Drive\"",
+    "        div > div \"允许 ChatGPT 使用 Google Drive 吗？\" + div > button[type=button] \"查看详情\"",
+    "  form",
+    "    button[type=button] > span \"始终允许\"",
+    "    div",
+    "      button[type=button] > span > kbd \"Esc\"   (拒绝)",
+    "      div",
+    "        button[type=button] > span \"允许一次\" + span > kbd \"⏎\"",
+    "        button[type=button] > svg   (下拉)"
+  ],
+  "outerHTML": "没存到：浏览器工具把整段 outerHTML 拦下了（里面带会话数据），只存了结构",
+  "script_result": { "status": "clicked", "clicked": 1, "cards": 1 },
+  "after_click_check": "5 秒后页面上 approval-card 数 = 0；对话里出现「已使用 Google Drive 集成运行了命令」；它要写的文件出现在 Drive 的目标文件夹里"
+}
