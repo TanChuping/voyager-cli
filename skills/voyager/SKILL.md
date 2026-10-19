@@ -63,12 +63,13 @@ voyager ask --json --project <project> "Use thesis.zip to …"   # a new chat in
 ChatGPT's own Google Drive and GitHub apps can read files instead of an upload through the page. They act as the person's connected accounts, with no confirmation step, and must already be connected in ChatGPT.
 
 ```sh
-voyager ask --json --drive ./paper.pdf --drive ./src "Review these"   # put on Drive, link in the prompt
+voyager ask --json --drive ./paper.pdf --drive ./src "Review these"   # put on Drive, file ids in the prompt
 voyager ask --json --repo owner/name "Fix the failing test"           # owner/name@ref for another ref
 ```
 
 - `--drive` packs like `--attach` (folders zipped, credentials left out) but has no 64 MiB bridge limit (512 MiB per file or zip; files over 20 MiB inside a folder are still left out), and uploads with rclone into a new folder under `$VOYAGER_DRIVE_REMOTE` (or `driveRemote` in `~/.voyager/config.json`), such as `gdrive:Voyager`. Files stay on Drive. Without rclone or a destination it is `bad-request`; the person sets that up. ChatGPT's Drive app must use the same Google account as the rclone remote.
 - `--repo` asks ChatGPT to commit only to a new `chatgpt/<time>-<id>` branch, printed on stderr; the app could write elsewhere, so check the branch before merging anything. A repository the app cannot reach ends as `permission-missing` (exit 3): the person adds it at github.com/settings/installations. The reply is still saved (`error.details.responsePath`).
+- No rclone destination, but Google Drive for desktop is installed (a `~/Library/CloudStorage/GoogleDrive-*` folder on macOS): ask the person whether to share the files through it. On a yes, copy them into a new folder under its `My Drive`, wait until Drive has synced them, then name the folder and files in the prompt and ask ChatGPT to read them with its Google Drive app. Write names, not drive.google.com links: Voyager extensions up to 2.1.1 fail to send a prompt holding a Drive link.
 
 ## Long replies
 
