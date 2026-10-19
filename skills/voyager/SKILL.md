@@ -58,6 +58,18 @@ voyager ask --json --project <project> "Use thesis.zip to …"   # a new chat in
 - What goes where: material many questions draw on (a repository, a paper, data) goes in the project once; a file one question needs goes with that question as `--attach`. `--project` and `--attach` combine. `--project` excludes `--chat`/`--continue`; to follow up in a project chat, pass its `conversationId` or link with `--chat`.
 - In a project the bridge only ever uses chat mode with GPT-6 Pro (or `--model`): a project page that opens in Work is switched to chat, and one that cannot be is `mode-unavailable`.
 
+## Google Drive and GitHub
+
+ChatGPT's own Google Drive and GitHub apps can read files instead of an upload through the page. They act as the person's connected accounts, with no confirmation step, and must already be connected in ChatGPT.
+
+```sh
+voyager ask --json --drive ./paper.pdf --drive ./src "Review these"   # put on Drive, link in the prompt
+voyager ask --json --repo owner/name "Fix the failing test"           # owner/name@ref for another ref
+```
+
+- `--drive` packs like `--attach` (folders zipped, credentials left out) but has no 64 MiB bridge limit (512 MiB per file or zip; files over 20 MiB inside a folder are still left out), and uploads with rclone into a new folder under `$VOYAGER_DRIVE_REMOTE` (or `driveRemote` in `~/.voyager/config.json`), such as `gdrive:Voyager`. Files stay on Drive. Without rclone or a destination it is `bad-request`; the person sets that up. ChatGPT's Drive app must use the same Google account as the rclone remote.
+- `--repo` asks ChatGPT to commit only to a new `chatgpt/<time>-<id>` branch, printed on stderr; the app could write elsewhere, so check the branch before merging anything. A repository the app cannot reach ends as `permission-missing` (exit 3): the person adds it at github.com/settings/installations. The reply is still saved (`error.details.responsePath`).
+
 ## Long replies
 
 A GPT-6 Pro reply can take hours. The job waits as long as ChatGPT is still working on it (stop button showing, or the reply still changing); it fails `reply-stalled` only after 20 minutes with no activity at all, and gives up at 12 hours. `--timeout` only bounds how long one command waits (default `30m`); the job keeps running in `voyager serve` either way.

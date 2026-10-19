@@ -13,6 +13,9 @@ import type { BlobRef, ConversationOpenResult } from '@voyager-crew/bridge-proto
  * `--project <name|id>` asks in a new chat inside that ChatGPT project: the tab
  * moves to the project in-app (`project.open`), which leaves it in chat mode or
  * fails; the project's files are there for the reply, beside any `--attach`.
+ *
+ * `--drive` puts files on Google Drive and `--repo` names a GitHub repository;
+ * both only add to the prompt, for ChatGPT's own apps (`./drive.ts`, `./repo.ts`).
  */
 import { basename } from 'node:path';
 
@@ -38,6 +41,7 @@ import {
   saveReplyFiles,
   saveResponse,
 } from '../shared/response';
+import { prepareDrive } from './drive';
 import {
   type AskModel,
   chooseModel,
@@ -45,6 +49,7 @@ import {
   type ModelReport,
   parseAskModel,
 } from './model';
+import { checkRepoReach, parseRepo, type RepoTarget, repoPromptBlock } from './repo';
 
 export { EXTERNAL_CONTENT_NOTICE };
 
@@ -60,6 +65,8 @@ export interface AskInput {
   readonly project?: string;
   /** `--no-files`: leave the files the reply offers in ChatGPT. */
   readonly noFiles?: boolean;
+  /** `--repo`: a reply that says the repository is out of reach fails the job. */
+  readonly repo?: RepoTarget;
 }
 
 const PHASE_C_OPTIONS = ['out'] as const;
@@ -112,8 +119,8 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
       throw failure('bad-request', `--${name} is not available yet (Phase C)`);
     }
   }
-  const prompt = argv.positionals.join(' ').trim();
-  if (prompt === '') throw failure('bad-request', 'usage: voyager ask "<prompt>"');
+  const asked = argv.positionals.join(' ').trim();
+  if (asked === '') throw failure('bad-request', 'usage: voyager ask "<prompt>"');
   const model = parseAskModel(argv.options.model);
   const project =
     typeof argv.options.project === 'string' ? argv.options.project.trim() : undefined;
@@ -133,6 +140,14 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     paths.length === 0
       ? []
       : await stageAttachments(paths, { cwd: fg.cwd, stagingDir: fg.stagingDir, note: fg.note });
+  const drive = await prepareDrive(fg, optionList(argv.options.drive), {
+    dryRun: argv.options['dry-run'] === true,
+  });
+  const repo = typeof argv.options.repo === 'string' ? parseRepo(argv.options.repo) : undefined;
+  if (repo !== undefined) fg.note(`repo: ChatGPT is asked to write only to ${repo.branch}`);
+  const prompt = [asked, drive.block, repo === undefined ? '' : repoPromptBlock(repo)]
+    .filter((part) => part !== '')
+    .join('\n\n');
   return {
     prompt,
     keepTab: argv.options['keep-tab'] === true,
@@ -141,7 +156,12 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     ...(project === undefined ? {} : { project }),
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(attachments.length > 0 ? { attachments } : {}),
+    ...(repo === undefined ? {} : { repo }),
   };
+}
+
+function optionList(raw: unknown): string[] {
+  return (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]).map(String);
 }
 
 async function registerAll(
@@ -205,7 +225,16 @@ async function run(ctx: JobContext, input: AskInput): Promise<JobResult> {
     }
     // Before anything is attached or typed: the prompt goes out on the model asked for.
     const model = await chooseModel(ctx, input.model ?? DEFAULT_ASK_MODEL);
-    return askInTab(ctx, input, { startedAt, blobs, attachments, existing, opened, model });
+    const result = await askInTab(ctx, input, {
+      startedAt,
+      blobs,
+      attachments,
+      existing,
+      opened,
+      model,
+    });
+    if (input.repo !== undefined) checkRepoReach(input.repo, result);
+    return result;
   });
 }
 
@@ -350,6 +379,17 @@ export const askPlugin = definePlugin({
           type: 'string',
           summary:
             'GPT-6 effort: pro (default), extra-high, high, medium, instant; current keeps the page as it is',
+        },
+        drive: {
+          type: 'string',
+          multiple: true,
+          summary:
+            "file or folder to put on Google Drive with rclone and link in the prompt, for ChatGPT's Drive app (repeatable)",
+        },
+        repo: {
+          type: 'string',
+          summary:
+            "GitHub repository for ChatGPT's GitHub app (owner/name[@ref]); it is asked to write only to a new chatgpt/* branch",
         },
         attach: {
           type: 'string',

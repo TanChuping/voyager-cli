@@ -77,6 +77,23 @@ voyager project files "论文"
 voyager project remove "论文" old-notes.md         # 立即删除且无法恢复，会先确认
 ```
 
+## Google Drive 和 GitHub
+
+ChatGPT 自带的 Google Drive 和 GitHub 应用可以直接读你的文件，不用再经过网页上传。先在 ChatGPT 里连上它们。
+
+```sh
+voyager ask --drive ./paper.pdf "总结一下方法部分"   # 放到 Drive 上，把链接写进提示
+voyager ask --repo owner/name "CI 为什么挂了？"       # 让 ChatGPT 的 GitHub 应用读这个仓库
+```
+
+`--drive` 的打包方式和 `--attach` 一样，但没有 64 MiB 的限制（文件夹里超过 20 MiB 的单个文件仍会被跳过），用 [rclone](https://rclone.org/drive/) 上传：
+把 `VOYAGER_DRIVE_REMOTE`（或 `~/.voyager/config.json` 里的 `"driveRemote"`）设成某个 Google Drive remote 上的文件夹，
+比如 `gdrive:Voyager`，而且要和 ChatGPT 的 Drive 应用是同一个 Google 账号。文件会一直留在那里。
+
+`--repo` 会要求 ChatGPT 只往一个新的 `chatgpt/*` 分支提交，你看过再合并。这只是要求，不是限制：它的 GitHub
+安装能写到哪里，它就能写到哪里，而且不会先问你。读不到仓库时，voyager 以退出码 3 停下，去
+[github.com/settings/installations](https://github.com/settings/installations) 把仓库加上就行。
+
 ## 给 agent 用
 
 Claude Code、Codex 以及任何能运行终端命令的 agent 都能用 Voyager CLI。先装上教它们怎么用的 skill：

@@ -38,6 +38,7 @@ export interface StageOptions {
   /** A fresh staging folder for this command; created on first use. */
   readonly stagingDir: () => Promise<string>;
   readonly note: (message: string) => void;
+  /** Per upload; the bridge's limit unless a caller that skips the bridge (Drive) passes its own. */
   readonly maxBytes?: number;
 }
 
@@ -139,7 +140,7 @@ export async function stageAttachments(
   if (inputs.length > MAX_ATTACHMENTS) {
     throw failure('bad-request', `at most ${MAX_ATTACHMENTS} attachments per message`);
   }
-  const maxBytes = Math.min(options.maxBytes ?? MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_BYTES);
+  const maxBytes = options.maxBytes ?? MAX_ATTACHMENT_BYTES;
   const taken = new Set<string>();
   const staged: StagedAttachment[] = [];
   for (const input of inputs) {

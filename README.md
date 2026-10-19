@@ -86,6 +86,24 @@ voyager project files "Thesis"
 voyager project remove "Thesis" old-notes.md       # immediate and permanent; asks first
 ```
 
+## Google Drive and GitHub
+
+ChatGPT's own Google Drive and GitHub apps can read your files directly, with no upload through the page. Connect them in ChatGPT first.
+
+```sh
+voyager ask --drive ./paper.pdf "Summarize the method"   # puts it on Drive and links it in the prompt
+voyager ask --repo owner/name "Why does CI fail?"         # ChatGPT's GitHub app reads the repository
+```
+
+`--drive` packs like `--attach` but has no 64 MiB limit (files over 20 MiB inside a folder are still left out), and uploads with [rclone](https://rclone.org/drive/):
+set `VOYAGER_DRIVE_REMOTE` (or `"driveRemote"` in `~/.voyager/config.json`) to a folder on a Google Drive
+remote, such as `gdrive:Voyager`, on the same Google account ChatGPT's Drive app uses. The files stay there.
+
+`--repo` asks ChatGPT to commit only to a new `chatgpt/*` branch, so you review before merging. That is a request, not
+a restriction: the app writes wherever its GitHub installation allows, without asking. If it cannot reach the
+repository, voyager stops with exit code 3; add the repository at
+[github.com/settings/installations](https://github.com/settings/installations).
+
 ## Using it from an agent
 
 Claude Code, Codex and any other agent that can run shell commands can use Voyager CLI. Install
