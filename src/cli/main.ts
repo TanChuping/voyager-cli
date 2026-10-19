@@ -21,12 +21,14 @@ const USAGE = `voyager ${CLI_VERSION}: drive ChatGPT through the Voyager extensi
 usage:
   voyager pair [--revoke]              pair the browser extension (one-time code)
   voyager ask "<prompt>" [--json]      new conversation, send, wait, save response.md
+                                       and the files the reply offers under files/
         [--attach <file|folder>]...    upload files; folders are zipped, credentials left out
         [--dry-run]                    pack attachments and print the job input, send nothing
         [--chat <link|id> | --continue] ask in an existing conversation, or the last one used
         [--project <name|id>]          ask in a new chat of a ChatGPT project (its files are there)
+        [--no-files]                   ask or read: leave the reply's files in ChatGPT
         [--timeout 30m] [--no-wait] [--keep-tab]
-  voyager read <link|id> [--json]      save an existing conversation's last finished reply
+  voyager read <link|id> [--json]      save an existing conversation's last finished reply and its files
         [--keep-tab]                   leave its ChatGPT tab open
   voyager project list | create <name> | files <project>    ChatGPT projects; <project>: name or g-p- id
         | upload <project> <file|folder> replaces a same-name file (ChatGPT ignores re-uploads),
@@ -35,7 +37,7 @@ usage:
         [--keep-tab]                   any project command: leave its ChatGPT tab open
   voyager status [--json]              serve, pairing and active job
   voyager commands [--json]            plugin commands and extension ops
-  voyager call <op> [--params JSON]    run one extension op (debugging)
+  voyager call <op> [--params JSON]    run one extension op (debugging); files.download saves the file
   voyager job list | show <id> | wait <id> [--timeout 30m] | cancel <id>
         long replies (Pro can take hours): ask --no-wait, then repeat job wait <id> --timeout 10m
         while it exits 4; never resend the prompt
@@ -49,6 +51,7 @@ unless --keep-tab; one you need to look at (sign-in, an unconfirmed send) stays 
 results name the ChatGPT plan the pages last showed (JSON: account; may trail a change)
 exit codes: 0 ok, 2 failed (data), 3 needs a person, 4 wait timed out (job continues),
             5 busy, 6 transient/detached/reply-stalled, 7 not paired or extension offline
+            a reply saved with some files not downloaded is 0: see failedFiles (JSON) or stderr
 state: ~/.voyager (override with VOYAGER_HOME)`;
 
 async function main(argv: readonly string[]): Promise<number> {

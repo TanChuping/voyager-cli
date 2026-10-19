@@ -1,23 +1,33 @@
 /**
  * Extension endpoints (spec §2.2): bearer ext-token and the paired Origin.
  * Uploads are read with `POST /v1/ext/blobs/:id/read` (a POST, so the
- * service worker's request always carries its Origin); downloads arrive with
- * `files.download`.
+ * service worker's request always carries its Origin). Downloads come the
+ * other way during a `files.download` task: `POST /v1/ext/blobs` creates one,
+ * `POST /v1/ext/blobs/:id` appends a chunk, `POST /v1/ext/blobs/:id/commit`
+ * checks it.
  */
 import {
+  base64DecodedLength,
   BRIDGE_PATHS,
+  MAX_BLOB_CHUNK_BASE64,
   validateMessage,
   type BlobChunk,
+  type BlobCreateResponse,
   type PollResponse,
 } from '@voyager-crew/bridge-protocol';
 
 import type { TaskReply } from '../../jobs/taskSlot';
 import { failure } from '../../util/errors';
+import { isRecord } from '../../util/isRecord';
 import { bearer } from '../guards';
 import type { Reply, Route, RouteContext, ServerCore } from '../http';
 import { forbidden, HttpFailure } from '../respond';
 
 const TASK = '([A-Za-z0-9_-]{1,128})';
+/** A full chunk's base64 plus room for the rest of its JSON. */
+const CHUNK_BODY_BYTES = MAX_BLOB_CHUNK_BASE64 + 1024;
+/** Linear in the input: no group repeated per four characters. */
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /** Returns 'revoked' for a token that was replaced or revoked, so poll can say `unpaired`. */
 function authorize(core: ServerCore, ctx: RouteContext): 'ok' | 'revoked' {
@@ -70,6 +80,69 @@ async function readBlob(core: ServerCore, ctx: RouteContext): Promise<Reply> {
   const bytes = await core.blobs.read(blob, offset, length);
   const chunk: BlobChunk = { blobId: blob.blobId, offset, base64: bytes.toString('base64') };
   return { status: 200, data: chunk };
+}
+
+/** Downloads are written only by the job's own `files.download` task, while it runs. */
+function requireDownloadTask(core: ServerCore, jobId: string, taskId: string): void {
+  const task = core.slot.current();
+  if (task?.op !== 'files.download' || task.jobId !== jobId || task.taskId !== taskId) {
+    throw failure('gone', 'no files.download of this job is running as that task');
+  }
+}
+
+/** The blob in the path, still owned by the task in the slot. */
+function requireOwnedBlob(core: ServerCore, blobId: string): void {
+  const owner = core.incoming.owner(blobId);
+  if (owner === undefined) throw failure('not-found', 'no such blob');
+  requireDownloadTask(core, owner.jobId, owner.taskId);
+}
+
+async function createDownload(core: ServerCore, ctx: RouteContext): Promise<Reply> {
+  requirePaired(core, ctx);
+  const checked = validateMessage('blobCreateRequest', ctx.body);
+  if (!checked.ok) throw failure('bad-request', 'invalid blob', { issues: checked.issues });
+  requireDownloadTask(core, checked.value.jobId, checked.value.taskId);
+  const data: BlobCreateResponse = { blobId: await core.incoming.create(checked.value) };
+  return { status: 200, data };
+}
+
+/**
+ * The `blobChunk` validator's base64 pattern overflows V8's regex stack past
+ * about 3 MiB of data (bridge-protocol 0.3.0), under a full chunk: `base64` is
+ * checked here in linear time, everything else by the shared validator.
+ */
+function readChunk(body: unknown): BlobChunk {
+  const base64 = isRecord(body) ? body.base64 : undefined;
+  if (
+    typeof base64 !== 'string' ||
+    base64 === '' ||
+    base64.length > MAX_BLOB_CHUNK_BASE64 ||
+    !BASE64.test(base64) ||
+    base64DecodedLength(base64) === undefined
+  ) {
+    throw failure('bad-request', 'invalid chunk: base64 must be padded base64 of one chunk');
+  }
+  // A short stand-in the pattern accepts; the real value was checked above.
+  const checked = validateMessage('blobChunk', { ...(body as object), base64: 'AAAA' });
+  if (!checked.ok) throw failure('bad-request', 'invalid chunk', { issues: checked.issues });
+  return { ...checked.value, base64 };
+}
+
+async function appendDownload(core: ServerCore, ctx: RouteContext): Promise<Reply> {
+  requirePaired(core, ctx);
+  const chunk = readChunk(ctx.body);
+  if (chunk.blobId !== ctx.params[0]) {
+    throw failure('bad-request', 'the chunk names another blob than the path');
+  }
+  requireOwnedBlob(core, ctx.params[0]);
+  const { received } = await core.incoming.append(chunk);
+  return { status: 200, data: { blobId: ctx.params[0], received } };
+}
+
+async function commitDownload(core: ServerCore, ctx: RouteContext): Promise<Reply> {
+  requirePaired(core, ctx);
+  requireOwnedBlob(core, ctx.params[0]);
+  return { status: 200, data: await core.incoming.commit(ctx.params[0]) };
 }
 
 async function poll(core: ServerCore, ctx: RouteContext): Promise<Reply> {
@@ -172,6 +245,25 @@ export function extRoutes(core: ServerCore): Route[] {
       pattern: new RegExp(`^/v1/ext/blobs/${TASK}/read$`),
       access: 'ext',
       handle: (ctx) => readBlob(core, ctx),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^${BRIDGE_PATHS.extBlobs}$`),
+      access: 'ext',
+      handle: (ctx) => createDownload(core, ctx),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^${BRIDGE_PATHS.extBlobs}/${TASK}$`),
+      access: 'ext',
+      maxBodyBytes: CHUNK_BODY_BYTES,
+      handle: (ctx) => appendDownload(core, ctx),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^${BRIDGE_PATHS.extBlobs}/${TASK}/commit$`),
+      access: 'ext',
+      handle: (ctx) => commitDownload(core, ctx),
     },
     {
       method: 'POST',

@@ -35,6 +35,7 @@ import {
   openBridgeTab,
   presentResponse,
   responseBlock,
+  saveReplyFiles,
   saveResponse,
 } from '../shared/response';
 import {
@@ -57,6 +58,8 @@ export interface AskInput {
   readonly model?: AskModel;
   /** Ask in a new chat of this project (a name, an id or a link). */
   readonly project?: string;
+  /** `--no-files`: leave the files the reply offers in ChatGPT. */
+  readonly noFiles?: boolean;
 }
 
 const PHASE_C_OPTIONS = ['out'] as const;
@@ -134,6 +137,7 @@ async function prepare(fg: ForegroundContext, argv: ParsedArgs): Promise<AskInpu
     prompt,
     keepTab: argv.options['keep-tab'] === true,
     model,
+    ...(argv.options['no-files'] === true ? { noFiles: true } : {}),
     ...(project === undefined ? {} : { project }),
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(attachments.length > 0 ? { attachments } : {}),
@@ -274,13 +278,19 @@ async function askInTab(
   const saved = await saveResponse(ctx, read);
   const { responsePath } = saved;
   await ctx.checkpoint('read', { assistantTurnKey: reply.assistantTurnKey, responsePath });
+  const { files, failedFiles } = await saveReplyFiles(ctx, read, saved, {
+    conversationId: sent.conversationId,
+    assistantTurnKey: reply.assistantTurnKey,
+    skip: input.noFiles === true,
+  });
 
   return {
     data: {
       conversationUrl: sent.url,
       conversationId: sent.conversationId,
       responsePath,
-      files: [],
+      files,
+      failedFiles,
       attachments: blobs.map((blob, index) => ({
         name: blob.name,
         size: blob.size,
@@ -351,6 +361,10 @@ export const askPlugin = definePlugin({
           summary: 'pack the attachments and print what would be sent, without sending',
         },
         out: { type: 'string', summary: 'also copy the outputs to this folder (Phase C)' },
+        'no-files': {
+          type: 'boolean',
+          summary: 'do not download the files the reply offers (saved under files/ otherwise)',
+        },
       },
       prepare,
       run,

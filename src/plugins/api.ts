@@ -90,7 +90,12 @@ export interface JobContext {
   readonly signal: AbortSignal;
   readonly outputDir: string;
   readonly ops: OpsClient;
-  /** Uploads: `register` takes a staged file into the job; `save` (downloads) is not available yet. */
+  /**
+   * `register` takes a staged file into the job (an upload). `save` moves a
+   * file a `files.download` result handed over (its `blobId` form) into
+   * `output/files/` under `name`, or `stem-2.ext`… when that is taken; what a
+   * job does not save is deleted when it ends.
+   */
   readonly blobs: {
     register(path: string, options?: BlobRegisterOptions): Promise<BlobRef>;
     save(blob: BlobRef, name: string): Promise<SavedFile>;

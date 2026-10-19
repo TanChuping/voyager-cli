@@ -40,5 +40,6 @@ opens itself. Plugins such as `ask` and `project` combine those ops; their `run(
 inside serve, so a job outlives the terminal that started it.
 
 State lives in `~/.voyager/` (0700), or `$VOYAGER_HOME`: `config.json` (`{"port": 47321}`),
-`serve.json`, `serve.lock`, `cli-token` and `pairings.json` (0600), `jobs/<id>/`,
+`serve.json`, `serve.lock`, `cli-token` and `pairings.json` (0600), `jobs/<id>/` (the reply in
+`output/`, its downloaded files in `output/files/`, downloads still arriving in `incoming/`),
 `last-conversation.json` (0600, what `--continue` uses), `plugin-state/` (each plugin's JSON, 0600) and `logs/serve.log`.

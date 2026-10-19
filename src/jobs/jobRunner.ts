@@ -1,9 +1,3 @@
-/**
- * The single job slot (spec §4.3/§4.4). One active job at a time; a second
- * submit is refused with `busy`, never queued. A job reaches its final status
- * only once the task slot is empty, so a cancelled job cannot overlap the next
- * one on the page.
- */
 import {
   categoryOf,
   isOpName,
@@ -11,6 +5,13 @@ import {
   type JobStatus,
   type OpName,
 } from '@voyager-crew/bridge-protocol';
+/**
+ * The single job slot (spec §4.3/§4.4). One active job at a time; a second
+ * submit is refused with `busy`, never queued. A job reaches its final status
+ * only once the task slot is empty, so a cancelled job cannot overlap the next
+ * one on the page.
+ */
+import { join } from 'node:path';
 
 import type { CommandDef, JobContext, PluginState } from '../plugins/api';
 import { CALL_PLUGIN } from '../plugins/callPlugin';
@@ -20,6 +21,7 @@ import type { LastConversation } from '../state/lastConversation';
 import { failure, toBridgeError } from '../util/errors';
 import type { Logger } from '../util/log';
 import type { BlobStore } from './blobStore';
+import type { IncomingBlobStore } from './incomingBlobStore';
 import { isTerminal, type JobRecord, type JobStore } from './jobStore';
 import { createOpsClient } from './opsClient';
 import type { TaskSlot } from './taskSlot';
@@ -32,6 +34,8 @@ export interface JobRunnerDeps {
   readonly isPaired: () => boolean;
   readonly log: Logger;
   readonly blobs: BlobStore;
+  /** Files the page downloaded for this job's `files.download` tasks. */
+  readonly incoming: IncomingBlobStore;
   /** Told about the conversation of each job that succeeds with one (`ask --continue`). */
   readonly rememberConversation?: (entry: LastConversation) => Promise<void>;
   /** Each plugin's own state; kept in memory for the runner's life when not given. */
@@ -136,6 +140,13 @@ export class JobRunner {
     // The page may still hold an abandoned task; the job ends only when it lets go.
     await this.deps.slot.idle();
     this.deps.blobs.forgetJob(job.jobId);
+    // Downloads the job did not save go with it; a failed delete never changes its outcome.
+    await this.deps.incoming.forgetJob(job.jobId).catch((error: unknown) => {
+      this.deps.log.warn('could not delete unsaved downloads', {
+        jobId: job.jobId,
+        error: String(error),
+      });
+    });
     // Recorded before `done`, so a `--continue` right after the wait finds it.
     if (status === 'succeeded') await this.remember(job, result);
     this.deps.store.update(job, {
@@ -171,8 +182,6 @@ export class JobRunner {
       },
       onProgress: (op, event) => store.appendEvent(job.jobId, 'progress', { op, event }),
     });
-    const notYet = (): Promise<never> =>
-      Promise.reject(failure('bad-request', 'downloads are not available yet (Phase C)'));
     return {
       jobId: job.jobId,
       signal: controller.signal,
@@ -180,7 +189,8 @@ export class JobRunner {
       ops,
       blobs: {
         register: (path, options) => this.deps.blobs.register(job.jobId, path, options),
-        save: notYet,
+        save: (blob, name) =>
+          this.deps.incoming.take(job.jobId, blob, join(store.outputDir(job.jobId), 'files'), name),
       },
       progress: (event) => store.appendEvent(job.jobId, 'progress', event),
       checkpoint: async (name, data) => {

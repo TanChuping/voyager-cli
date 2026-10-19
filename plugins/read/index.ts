@@ -1,6 +1,7 @@
 /**
  * Official `read` plugin: open an existing conversation, read its last
- * finished reply into `output/response.md`, close the tab (also after a
+ * finished reply into `output/response.md` and the files it offers into
+ * `output/files/` (unless `--no-files`), close the tab (also after a
  * failure; `--keep-tab` keeps it). Nothing is typed or
  * sent; a reply still being written is refused (`unverified`), never swapped
  * for an earlier one.
@@ -19,12 +20,15 @@ import {
   openBridgeTab,
   presentResponse,
   responseBlock,
+  saveReplyFiles,
   saveResponse,
 } from '../shared/response';
 
 export interface ReadInput {
   readonly conversationId: string;
   readonly keepTab: boolean;
+  /** `--no-files`: leave the files the reply offers in ChatGPT. */
+  readonly noFiles?: boolean;
 }
 
 async function prepare(_fg: ForegroundContext, argv: ParsedArgs): Promise<ReadInput> {
@@ -34,6 +38,7 @@ async function prepare(_fg: ForegroundContext, argv: ParsedArgs): Promise<ReadIn
   return {
     conversationId: parseConversationRef(argv.positionals[0]),
     keepTab: argv.options['keep-tab'] === true,
+    ...(argv.options['no-files'] === true ? { noFiles: true } : {}),
   };
 }
 
@@ -53,6 +58,11 @@ async function run(ctx: JobContext, input: ReadInput): Promise<JobResult> {
     });
     const saved = await saveResponse(ctx, read);
     await ctx.checkpoint('read', { turnKey: read.turnKey, responsePath: saved.responsePath });
+    const { files, failedFiles } = await saveReplyFiles(ctx, read, saved, {
+      conversationId: input.conversationId,
+      assistantTurnKey: read.turnKey,
+      skip: input.noFiles === true,
+    });
 
     return {
       data: {
@@ -60,7 +70,8 @@ async function run(ctx: JobContext, input: ReadInput): Promise<JobResult> {
         conversationId: input.conversationId,
         responsePath: saved.responsePath,
         turnKey: read.turnKey,
-        files: [],
+        files,
+        failedFiles,
         timings: { startedAt, finishedAt: Date.now() },
         response: responseBlock(read, saved),
       },
@@ -74,10 +85,15 @@ export const readPlugin = definePlugin({
   requiresOps: ['conversation.open', 'turns.read', 'conversation.close'],
   commands: {
     read: {
-      summary: "Read an existing conversation's last finished reply into response.md",
+      summary:
+        "Read an existing conversation's last finished reply into response.md, with its files",
       args: [{ name: 'conversation', summary: 'a chatgpt.com conversation link, or its id' }],
       options: {
         'keep-tab': { type: 'boolean', summary: 'leave the bridge tab open afterwards' },
+        'no-files': {
+          type: 'boolean',
+          summary: 'do not download the files the reply offers (saved under files/ otherwise)',
+        },
       },
       prepare,
       run,

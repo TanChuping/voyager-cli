@@ -11,7 +11,7 @@ import {
  * `events.jsonl` (append-only), `output/`. Events also live in memory so the
  * long poll of `GET /v1/jobs/:id/events` can wake on the next one.
  */
-import { appendFile, mkdir, readdir, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { sendInterrupted, sendUnverified } from '../plugins/sendGuard';
@@ -77,14 +77,17 @@ export class JobStore {
 
   /**
    * A job that was running when serve stopped is `detached`: serve never resumes
-   * it on its own (`voyager job harvest` is the explicit way back). One that
-   * stopped with its send dispatched but unconfirmed fails as `send-unverified`.
+   * it on its own (`voyager job harvest` is the explicit way back), and the
+   * downloads it had not saved are deleted. One that stopped with its send
+   * dispatched but unconfirmed fails as `send-unverified`.
    */
   async init(): Promise<void> {
     for (const jobId of await this.listIds()) {
       const job = await this.load(jobId);
       if (job === undefined || isTerminal(job.status)) continue;
       await this.loadEvents(jobId);
+      // Half-received downloads of a job serve no longer runs (see IncomingBlobStore).
+      await rm(join(this.jobDir(jobId), 'incoming'), { recursive: true, force: true });
       if (sendInterrupted(job.checkpoints)) {
         // Stopped between dispatching composer.send and its confirmation: the prompt may be in ChatGPT.
         const error = sendUnverified(

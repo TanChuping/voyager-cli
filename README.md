@@ -57,6 +57,11 @@ Every ask uses GPT-6 Pro in chat mode unless you pick another effort, and leaves
 Voyager never switches ChatGPT to Work mode. The reply lands in `~/.voyager/jobs/<id>/output/`,
 and `--json` prints its path along with the conversation link.
 
+Files the reply offers (a CSV, a chart, a zip ChatGPT made) are saved beside it in `files/`,
+with `-2`, `-3`… added when a name repeats; `--no-files` leaves them in ChatGPT. A file that
+cannot be downloaded is reported without failing the command, since the reply itself was
+saved: `voyager read <link>` tries again later.
+
 ### Long answers
 
 Pro can think for hours. `ask` waits as long as ChatGPT is still working on the reply, and

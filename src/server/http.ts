@@ -7,6 +7,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 
 import { BlobStore } from '../jobs/blobStore';
+import { IncomingBlobStore } from '../jobs/incomingBlobStore';
 import { JobRunner } from '../jobs/jobRunner';
 import { JobStore } from '../jobs/jobStore';
 import { TaskSlot } from '../jobs/taskSlot';
@@ -61,6 +62,8 @@ export interface Route {
   readonly method: 'GET' | 'POST';
   readonly pattern: RegExp;
   readonly access: Access;
+  /** Body limit when it is not {@link MAX_JSON_BODY_BYTES} (a download chunk). */
+  readonly maxBodyBytes?: number;
   handle(ctx: RouteContext): Promise<Reply> | Reply;
 }
 
@@ -75,6 +78,7 @@ export interface ServerCore {
   readonly runner: JobRunner;
   readonly registry: PluginRegistry;
   readonly blobs: BlobStore;
+  readonly incoming: IncomingBlobStore;
   readonly pollHoldMs: number;
   /** Ends a held poll; set while one is held. */
   heldPoll: (() => void) | undefined;
@@ -108,8 +112,10 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
   const extension = new ExtensionState();
   const registry = options.registry ?? new PluginRegistry();
   const blobs = new BlobStore(options.paths, (jobId) => store.jobDir(jobId));
+  const incoming = new IncomingBlobStore((jobId) => store.jobDir(jobId));
   const runner = new JobRunner({
     blobs,
+    incoming,
     store,
     slot,
     registry,
@@ -130,6 +136,7 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
     runner,
     registry,
     blobs,
+    incoming,
     pollHoldMs: options.pollHoldMs ?? POLL_HOLD_MS,
     heldPoll: undefined,
   };
@@ -167,7 +174,10 @@ export async function startBridgeServer(options: BridgeServerOptions): Promise<B
         origin = checkOpenOrigin(req, route.access === 'pair');
         if (route.access === 'pair') checkProtocol(req, 'extension');
       }
-      const body = req.method === 'POST' ? await readJsonBody(req) : undefined;
+      const body =
+        req.method === 'POST'
+          ? await readJsonBody(req, route.maxBodyBytes ?? MAX_JSON_BODY_BYTES)
+          : undefined;
       const reply = await route.handle({ req, res, url, params, body, origin });
       if (reply.status === 204) sendJson(res, 204, undefined);
       else if (reply.raw) sendJson(res, reply.status, reply.data);
@@ -221,15 +231,15 @@ function findRoute(
   return undefined;
 }
 
-async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+async function readJsonBody(req: IncomingMessage, limit: number): Promise<unknown> {
   const declared = Number(header(req, 'content-length') ?? 0);
-  if (declared > MAX_JSON_BODY_BYTES) throw tooLarge();
+  if (declared > limit) throw tooLarge(limit);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     const buffer = chunk as Buffer;
     size += buffer.length;
-    if (size > MAX_JSON_BODY_BYTES) throw tooLarge();
+    if (size > limit) throw tooLarge(limit);
     chunks.push(buffer);
   }
   const text = Buffer.concat(chunks).toString('utf8');
@@ -241,9 +251,9 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   }
 }
 
-function tooLarge(): HttpFailure {
+function tooLarge(limit: number): HttpFailure {
   return new HttpFailure(
     413,
-    failure('bad-request', `JSON bodies are limited to ${MAX_JSON_BODY_BYTES} bytes`).error,
+    failure('bad-request', `this endpoint takes JSON bodies of at most ${limit} bytes`).error,
   );
 }
