@@ -36,19 +36,35 @@
 
 决定：CLI 先只写文件 ID，今天就能用；插件的读取修复等下次正常发版时一起带上。不去掉核对。
 
-## 已做的改动（都还没推送）
+## 已推送的改动
 
-- voyager-cli `main`：`1d39569` 新增 `AGENTS.md` 和 `CLAUDE.md`。
-- voyager-cli 分支 `feat/ask-drive-repo`（worktree `~/Build/voyager-cli-drive`），已 rebase 到另一个 session 的下载功能 `b8558a5` 之上：
+两个仓库都已推送到 `main`：voyager-cli `050c9b1..ffa69bc`，插件仓库 `a3697606..5b866037`。
+
+- voyager-cli `1d39569`：新增 `AGENTS.md` 和 `CLAUDE.md`。
+- voyager-cli `b8558a5`（另一个 session）：`ask` 和 `read` 自动下载回复里附带的文件，存到 `output/files/`；`--no-files` 跳过。
+- 插件仓库 `0af087a5` + `5b866037`（另一个 session）：新增 bridge op `files.download`；回复里 `sandbox:/mnt/data/…` 链接所在消息下载返回 404 时，自动换同一轮里的其他消息再试。
+- voyager-cli `d4ad093`：
   - `voyager ask --drive <文件|文件夹>`：打包方式同 `--attach`（文件夹打成 zip、去掉密钥文件），用 rclone 上传到 `$VOYAGER_DRIVE_REMOTE` 下的新文件夹，在提示里写文件 ID。单个文件或 zip 上限 512 MiB，文件夹里超过 20 MiB 的单个文件仍会被跳过。
   - `voyager ask --repo owner/name[@ref]`：要求 ChatGPT 只写到新的 `chatgpt/<时间>-<id>` 分支；读不到仓库就以 `permission-missing` 失败（退出码 3），回复照样保存。
   - SKILL.md、README、README_ZH 已补上说明。
 
+## 推送之后要做什么
+
+| 功能                 | 要发什么版本                    | 旧版本插件的用户                           |
+| -------------------- | ------------------------------- | ------------------------------------------ |
+| `--drive`、`--repo`  | 只要发 CLI 的 npm 新版本        | 能用，插件不用更新                         |
+| 自动下载回复里的文件 | CLI 的 npm 新版本，加插件新版本 | 照样能提问；文件不下载，CLI 提示去更新插件 |
+
+- CLI 继续依赖已发布的 `@voyager-crew/bridge-protocol@0.3.0`，不用先发 protocol 0.3.1。0.3.1 只是清理，发了之后可以去掉 serve 里校验 base64 的临时写法。
+- 插件仓库里还有 5 个改动没提交（导出、时间戳、`conversation-history-observer.js`），不属于这两份工作，没有推送。
+
 ## 待办
 
-- [x] `--drive` / `--repo` 真实测试通过，已提交到分支（`d4ad093`）；是否合并、推送由 Jesse 决定。
+- [x] `--drive` / `--repo` 真实测试通过，已合并并推送（`d4ad093`）。
+- [ ] 发 CLI 的 npm 新版本。
+- [ ] 插件发新版本，带上 `files.download` 和下面的 `domText` 修复。
 - [x] `voyager serve` 已交还给另一个 session（它需要从主工作区重启 serve）。
-- [ ] 插件：`domText` 跳过 `<style>`、`<svg>` 等非正文节点，下次发版时带上；顺便看普通用户的草稿功能是否受影响。
+- [ ] 插件：`domText` 跳过 `<style>`、`<svg>` 等非正文节点；顺便看普通用户的草稿功能是否受影响。
 - [ ] 插件：bridge 失败后清掉自己打进输入框的草稿。
 - [ ] "允许使用 Google Drive / GitHub" 弹窗还没抓到，下次出现时先别点，记下 DOM 结构。
 - [ ] 清理测试残留（删除前再确认一次）：Drive 上的 `voyager-drive-test` 文件夹，私有仓库 `Nagi-ovo/voyager-gh-test`，ChatGPT 里的几个测试对话。
@@ -60,4 +76,4 @@
 - Drive：ChatGPT 按文件 ID 取到 zip，用 Python 解压，canary 正确。
 - GitHub：从 `main` 读到 README 的 canary；按要求只往 `chatgpt/20261019-1251-9adf` 提交了 `1cc15b8`，只新增 `NOTES.md`，内容一字不差。用 gh 核对过，`main` 没动。
 - 还没实测：读不到仓库时报退出码 3 的那条路径，目前只有单元测试覆盖。
-- 分支 `feat/ask-drive-repo` 的最新提交是 `d4ad093`，307 个测试全部通过。
+- 合并后的 `main` 上 307 个测试全部通过。
